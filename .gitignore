@@ -1,0 +1,19 @@
+/.venv/
+/data/
+/logs/
+/results/
+/results_stocks/
+/.idea/
+/.pytest_cache/
+__pycache__/
+*.pyc
+# LaTeX build files
+paper/*.aux
+paper/*.bbl
+paper/*.blg
+paper/*.log
+paper/*.out
+paper/*.toc
+paper/*.synctex.gz
+paper/*.fdb_latexmk
+paper/*.fls
