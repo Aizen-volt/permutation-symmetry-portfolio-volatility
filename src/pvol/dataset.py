@@ -72,6 +72,7 @@ class PanelGPU:
         g = self._portfolio_history_feats(t, S, w)[0]
         self.g_mu = g.mean(0)
         self.g_sd = g.std(0).clamp_min(1e-6)
+        self.raw_base = g[:, 2].mean()  # constant anchor (log of a typical 22-day variance) for raw-input networks
 
     # ---------- sampling ----------
     def sample(self, B, N, t_range, gen, alpha=1.0, scheme="long_only", pool=None):
@@ -99,8 +100,12 @@ class PanelGPU:
         pv22 = (w * C22w).sum(-1).clamp_min(VAR_FLOOR)
         return torch.stack(g, -1), dict(Ssub=Ssub, Sw=Sw, pv_ewma=pv_ewma, C22w=C22w, pv22=pv22, Rh=Rh)
 
-    def batch(self, t, S, w, h=None, gru_len=0):
-        """Model inputs (dict of tensors) and, if h is given, the target y (B,)."""
+    def batch(self, t, S, w, h=None, gru_len=0, raw=False):
+        """Model inputs (dict of tensors) and, if h is given, the target y (B,).
+
+        raw=True (experiment E1) removes every engineered portfolio-level summary: the EWMA anchor is replaced by a
+        constant, the portfolio HAR features are zeroed and the element features keep only the weight (Euler
+        contributions and correlation with the portfolio are zeroed). Tensor shapes are unchanged."""
         B, N = S.shape
         g, aux = self._portfolio_history_feats(t, S, w)
         X = (self.X_raw[t[:, None], S] - self.x_mu) / self.x_sd  # (B, N, F)
@@ -110,12 +115,18 @@ class PanelGPU:
         rc22 = w * aux["C22w"] / aux["pv22"][:, None]
         rho_ip = aux["Sw"] / (sig * aux["pv_ewma"].sqrt()[:, None])  # corr(asset i, portfolio)
         node_w = torch.stack([w * N, rc_ewma * N, rc22 * N, rho_ip], -1)
+        g_std = (g - self.g_mu) / self.g_sd
+        base = torch.log(aux["pv_ewma"])
+        if raw:
+            node_w = torch.cat([node_w[..., :1], torch.zeros_like(node_w[..., 1:])], -1)
+            g_std = torch.zeros_like(g_std)
+            base = self.raw_base.expand(B)
         out = dict(
             x_asset=torch.cat([X, oh], -1),  # weight-free asset features (B, N, F+C)
             x_port=node_w,  # portfolio-conditional node features (B, N, 4)
             pair=self.P[t[:, None, None], S[:, :, None], S[:, None, :]],  # (B, N, N, 3)
-            g=(g - self.g_mu) / self.g_sd,  # (B, 5) portfolio-level HAR/EWMA features
-            base=torch.log(aux["pv_ewma"]),  # log EWMA portfolio variance (residual anchor)
+            g=g_std,  # (B, 5) portfolio-level HAR/EWMA features
+            base=base,  # log EWMA portfolio variance (residual anchor)
             w=w,
             sig=sig,
             corr_ewma=aux["Ssub"] / (sig[:, :, None] * sig[:, None, :]),
@@ -143,3 +154,30 @@ def sample_weights(B, N, gen, device, alpha=1.0, scheme="long_only"):
         z = torch.randn(B, N, device=device, generator=gen)
         return z / z.abs().sum(1, keepdim=True)  # gross exposure 1
     raise ValueError(scheme)
+
+
+class PortfolioPool:
+    """Fixed set of training portfolios (experiment E2): drawn once from the training distribution (N ~ U{n_min..n_max},
+    Dirichlet weights with concentration from `alphas`), grouped by size; the order of the assets never changes."""
+
+    def __init__(self, panel, n_ports, n_min, n_max, alphas, seed):
+        dev = panel.device
+        gen = torch.Generator(device=dev).manual_seed(seed)
+        rng = np.random.default_rng(seed)
+        sizes = rng.integers(n_min, n_max + 1, n_ports)
+        self.groups = {}
+        for N in np.unique(sizes):
+            k = int((sizes == N).sum())
+            perm = torch.rand(k, len(panel.asset_ids), device=dev, generator=gen).argsort(1)[:, : int(N)]
+            S = panel.asset_ids[perm]
+            a = torch.as_tensor(rng.choice(alphas, k), device=dev, dtype=torch.float32)[:, None].expand(k, int(N))
+            gam = torch._standard_gamma(a.contiguous(), generator=gen)
+            self.groups[int(N)] = (S, gam / gam.sum(1, keepdim=True))
+        self.sizes = sorted(self.groups)
+        self.n_ports = n_ports
+
+    def sample(self, B, N, t_range, gen, device):
+        S, w = self.groups[N]
+        idx = torch.randint(0, len(S), (B,), device=device, generator=gen)
+        t = torch.randint(t_range[0], t_range[1] + 1, (B,), device=device, generator=gen)
+        return t, S[idx], w[idx]

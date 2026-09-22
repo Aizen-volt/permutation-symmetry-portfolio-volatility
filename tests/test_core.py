@@ -107,3 +107,45 @@ def test_panel_features_causal():
     R, sq, rng = variance_proxies(cut["Open"], cut["High"], cut["Low"], cut["Close"])
     X, _ = node_features(R, sq, rng)
     np.testing.assert_allclose(X[t], full["X"][t], rtol=1e-4, atol=1e-5)
+
+
+def test_raw_mode_removes_portfolio_summaries(panel):
+    p, split = panel
+    gen = torch.Generator(device=DEV).manual_seed(4)
+    t, S, w = p.sample(16, 7, split.train, gen)
+    inp, _ = p.batch(t, S, w, raw=True)
+    assert torch.count_nonzero(inp["g"]) == 0
+    assert torch.count_nonzero(inp["x_port"][..., 1:]) == 0
+    assert torch.allclose(inp["x_port"][..., 0], w * 7)
+    assert torch.unique(inp["base"]).numel() == 1
+
+
+@pytest.mark.parametrize("name", ["DeepSets", "PENet", "SetTransformer"])
+def test_invariance_in_raw_mode(panel, name):
+    p, split = panel
+    torch.manual_seed(0)
+    model = MODELS[name]().to(DEV).eval()
+    for m in model.modules():
+        if isinstance(m, torch.nn.Linear):
+            torch.nn.init.normal_(m.weight, std=0.05)
+    gen = torch.Generator(device=DEV).manual_seed(5)
+    t, S, w = p.sample(32, 9, split.train, gen)
+    perm = torch.randperm(9, device=DEV)
+    with torch.no_grad():
+        a = model(p.batch(t, S, w, raw=True)[0])
+        b = model(p.batch(t, S[:, perm], w[:, perm], raw=True)[0])
+    assert torch.allclose(a, b, atol=1e-4, rtol=1e-5)
+
+
+def test_portfolio_pool(panel):
+    from pvol.dataset import PortfolioPool
+
+    p, split = panel
+    pool = PortfolioPool(p, 50, 2, 20, (0.3, 1.0, 3.0), seed=1)
+    assert sum(len(S) for S, _ in pool.groups.values()) == 50
+    gen = torch.Generator(device=DEV).manual_seed(0)
+    N = pool.sizes[0]
+    t, S, w = pool.sample(64, N, split.train, gen, DEV)
+    rows = {tuple(r) for r in pool.groups[N][0].tolist()}
+    assert all(tuple(r) in rows for r in S.tolist())  # only pool portfolios, in their fixed order
+    assert torch.allclose(w.sum(1), torch.ones(64, device=DEV))

@@ -6,6 +6,7 @@ from dataclasses import asdict, dataclass
 import numpy as np
 import torch
 
+from .dataset import PortfolioPool
 from .models import MODELS, SEQ_MODELS, SLOT_MODELS
 
 
@@ -26,6 +27,9 @@ class TrainCfg:
     ema_decay: float = 0.99  # exponential moving average of weights, used for validation and prediction
     min_epochs: int = 0  # robustness protocol: never stop before this many epochs
     top_k_avg: int = 1  # robustness protocol: average the EMA weights of the k best validation epochs
+    raw_inputs: bool = False  # experiment E1: no engineered portfolio-level summaries
+    portfolio_pool: int = 0  # experiment E2: train (and validate) on a fixed pool of this many portfolios; 0 = fresh draws
+    pool_seed: int = 4242  # the same pool for every model and seed
 
 
 def qlike(s, y):
@@ -38,10 +42,14 @@ def build_model(name, hp=None):
     return MODELS[name](**(hp or {}))
 
 
-def fixed_batches(panel, t_range, n_batches, cfg, seed):
+def fixed_batches(panel, t_range, n_batches, cfg, seed, pool=None):
     gen = torch.Generator(device=panel.device).manual_seed(seed)
     out = []
     for k in range(n_batches):
+        if pool is not None:
+            N = pool.sizes[k % len(pool.sizes)]
+            out.append((N, pool.sample(cfg.batch, N, t_range, gen, panel.device)))
+            continue
         N = cfg.n_min + k % (cfg.n_max - cfg.n_min + 1)
         alpha = cfg.alphas[k % len(cfg.alphas)]
         out.append((N, panel.sample(cfg.batch, N, t_range, gen, alpha=alpha)))
@@ -49,11 +57,11 @@ def fixed_batches(panel, t_range, n_batches, cfg, seed):
 
 
 @torch.no_grad()
-def evaluate_batches(model, panel, batches, h, gru_len):
+def evaluate_batches(model, panel, batches, h, gru_len, raw=False):
     model.eval()
     tot, n = 0.0, 0
     for _, (t, S, w) in batches:
-        inp, y = panel.batch(t, S, w, h=h, gru_len=gru_len)
+        inp, y = panel.batch(t, S, w, h=h, gru_len=gru_len, raw=raw)
         loss = qlike(model(inp), y)
         tot += loss.sum().item()
         n += loss.numel()
@@ -71,7 +79,9 @@ def train_model(name, panel, split, h, seed, cfg=None, hp=None, verbose=False):
     gru_len = cfg.gru_len if name in SEQ_MODELS else 0
     gen = torch.Generator(device=panel.device).manual_seed(seed)
     panel.fit_scalers(split.train, torch.Generator(device=panel.device).manual_seed(0))
-    val = fixed_batches(panel, split.val, cfg.val_batches, cfg, seed=987 + h)
+    pool = (PortfolioPool(panel, cfg.portfolio_pool, cfg.n_min, cfg.n_max, cfg.alphas, cfg.pool_seed)
+            if cfg.portfolio_pool else None)
+    val = fixed_batches(panel, split.val, cfg.val_batches, cfg, seed=987 + h, pool=pool)
     opt = torch.optim.AdamW(model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=cfg.max_epochs)
     best, best_state, wait, hist, top = np.inf, None, 0, [], []
@@ -81,10 +91,14 @@ def train_model(name, panel, split, h, seed, cfg=None, hp=None, verbose=False):
         model.train()
         tr = 0.0
         for _ in range(cfg.steps_per_epoch):
-            N = int(rng.integers(cfg.n_min, cfg.n_max + 1))
-            alpha = float(rng.choice(cfg.alphas))
-            t, S, w = panel.sample(cfg.batch, N, split.train, gen, alpha=alpha)
-            inp, y = panel.batch(t, S, w, h=h, gru_len=gru_len)
+            if pool is not None:
+                N = int(rng.choice(pool.sizes))
+                t, S, w = pool.sample(cfg.batch, N, split.train, gen, panel.device)
+            else:
+                N = int(rng.integers(cfg.n_min, cfg.n_max + 1))
+                alpha = float(rng.choice(cfg.alphas))
+                t, S, w = panel.sample(cfg.batch, N, split.train, gen, alpha=alpha)
+            inp, y = panel.batch(t, S, w, h=h, gru_len=gru_len, raw=cfg.raw_inputs)
             loss = qlike(model(inp), y).mean()
             opt.zero_grad(set_to_none=True)
             loss.backward()
@@ -95,7 +109,7 @@ def train_model(name, panel, split, h, seed, cfg=None, hp=None, verbose=False):
                     e.lerp_(q, 1 - cfg.ema_decay)
             tr += loss.item()
         sched.step()
-        v = evaluate_batches(ema, panel, val, h, gru_len)
+        v = evaluate_batches(ema, panel, val, h, gru_len, raw=cfg.raw_inputs)
         hist.append((epoch, tr / cfg.steps_per_epoch, v))
         if verbose:
             print(f"  ep {epoch:3d} train {tr / cfg.steps_per_epoch:.4f} val {v:.4f}  ({time.time() - t0:.0f}s)")
@@ -111,6 +125,7 @@ def train_model(name, panel, split, h, seed, cfg=None, hp=None, verbose=False):
     if cfg.top_k_avg > 1:
         best_state = {k: sum(st[k] for _, st in top) / len(top) for k in best_state}
     model.load_state_dict(best_state)
+    model.raw_inputs = cfg.raw_inputs  # prediction must use the same input mode
     info = dict(model=name, h=h, seed=seed, best_val=best, epochs=len(hist), seconds=time.time() - t0,
                 n_params=sum(p.numel() for p in model.parameters()), history=hist, cfg=asdict(cfg), hp=hp or {})
     return model, info
@@ -123,6 +138,7 @@ def predict_portfolios(model, name, panel, portfolios, t_idx, gru_len=22, chunk=
     dev = panel.device
     out = np.full((len(t_idx), len(portfolios)), np.nan, dtype=np.float32)
     n_slots = getattr(model, "n_slots", None)
+    raw = getattr(model, "raw_inputs", False)
     by_n = {}
     for j, p in enumerate(portfolios):
         by_n.setdefault(len(p["ids"]), []).append(j)
@@ -138,7 +154,7 @@ def predict_portfolios(model, name, panel, portfolios, t_idx, gru_len=22, chunk=
         step = max(1, chunk * 100 // (N * N)) if N > 10 else chunk  # pairwise tensors grow with N^2
         preds = []
         for a in range(0, len(tt), step):
-            inp, _ = panel.batch(tt[a : a + step], SS[a : a + step], WW[a : a + step], gru_len=gru_len if name in SEQ_MODELS else 0)
+            inp, _ = panel.batch(tt[a : a + step], SS[a : a + step], WW[a : a + step], gru_len=gru_len if name in SEQ_MODELS else 0, raw=raw)
             preds.append(model(inp).float())
         out[:, cols] = torch.cat(preds).view(len(t_idx), P).cpu().numpy()
     return out
