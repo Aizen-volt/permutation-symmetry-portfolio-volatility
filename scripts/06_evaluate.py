@@ -114,7 +114,7 @@ def evaluate_h(exp, h, seeds, out):
 
     # ---- seed dispersion of NN losses (first group set)
     sd = []
-    for m, runs in run["F_seed"].items():
+    for m, runs in ((m, r) for m, r in run["F_seed"].items() if m in Lq):  # skip tagged variants (-K2, -P50, ...)
         vals = [np.nanmean(qlike(y[:, cols], f[:, cols])) for f in runs.values()]
         sd.append(dict(h=h, model=m, n_seeds=len(vals), mean=np.mean(vals), sd=np.std(vals, ddof=1) if len(vals) > 1 else np.nan,
                        ensemble=np.nanmean(Lq[m][:, cols])))

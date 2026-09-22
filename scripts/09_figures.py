@@ -11,10 +11,22 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
-from pvol.config import HORIZONS, RESULTS  # noqa: E402
+from pvol.config import HORIZONS, RESULTS, UNIVERSE_NAME  # noqa: E402
 
 FIG = Path(__file__).resolve().parents[1] / "paper" / "figures"
 FIG.mkdir(parents=True, exist_ok=True)
+PREVIEW = Path(__file__).resolve().parents[1] / "results" / "figure_previews"
+PREVIEW.mkdir(parents=True, exist_ok=True)
+
+
+SUF = "" if UNIVERSE_NAME == "etf" else f"_{UNIVERSE_NAME}"
+
+
+def save(fig, name):
+    name = name + SUF
+    fig.savefig(FIG / f"{name}.pdf")
+    fig.savefig(PREVIEW / f"{name}.png", dpi=130)
+    plt.close(fig)
 
 SLOTS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100"]
 MARKERS = ["o", "s", "^", "D"]
@@ -36,7 +48,11 @@ def lab(m):
     return LABEL.get(m, m)
 
 
+OMIT = {"LW", "HIST", "EWMANLS", "EWMA"}  # static / far-off benchmarks stay in the tables, not in the figures
+
+
 def highlighted_lines(ax, df, x, y, highlight, others, xlabels=None):
+    others = [m for m in others if m not in OMIT]
     for m in others:
         d = df[df.model == m].sort_values(x)
         if len(d):
@@ -47,9 +63,10 @@ def highlighted_lines(ax, df, x, y, highlight, others, xlabels=None):
             continue
         ax.plot(d[x], d[y], color=SLOTS[k], marker=MARKERS[k], label=lab(m), zorder=3,
                 markeredgecolor="white", markeredgewidth=0.8)
-        ax.annotate(lab(m), (d[x].iloc[-1], d[y].iloc[-1]), xytext=(4, 0), textcoords="offset points",
-                    va="center", fontsize=7.5, color=INK2)
     ax.axhline(1.0, color=AXIS, lw=0.8, zorder=0)
+    shown = df[df.model.isin(list(highlight) + others)][y]
+    lo, hi = shown.min(), np.nanpercentile(shown, 99)
+    ax.set_ylim(lo - 0.05 * (hi - lo), hi + 0.08 * (hi - lo))
 
 
 def fig_yearly(exp="main", highlight=("SetGRU", "GRU", "DeepSets", "MLP"), bench=("HARX", "DCC")):
@@ -68,13 +85,15 @@ def fig_yearly(exp="main", highlight=("SetGRU", "GRU", "DeepSets", "MLP"), bench
         ax.set_xticklabels([str(y)[2:] for y in sorted(d.year.unique())])
         ax.set_xlabel("test year (20xx)")
     axes[0].set_ylabel("QLIKE relative to EWMA")
-    axes[-1].legend(loc="upper left", bbox_to_anchor=(1.25, 1.0), fontsize=7.5)
-    fig.savefig(FIG / f"yearly_{exp}.pdf")
-    plt.close(fig)
+    axes[-1].legend(loc="upper left", bbox_to_anchor=(1.02, 1.0), fontsize=7.5)
+    save(fig, f"yearly_{exp}")
 
 
 def fig_by_size(exp="main", highlight=("SetGRU", "GRU", "DeepSets", "MLP")):
-    groups = {"N5": 5, "N10": 10, "N20": 20, "N30": 30, "N40": 40, "EW-all": 54}
+    from pvol.portfolios import load as load_ports
+
+    n_all = max(len(q["ids"]) for q in load_ports(RESULTS / exp / "portfolios.json"))
+    groups = {"N5": 5, "N10": 10, "N20": 20, "N30": 30, "N40": 40, "EW-all": n_all}
     fig, axes = plt.subplots(1, len(HORIZONS), figsize=(7.2, 2.5))
     for ax, h in zip(axes, HORIZONS):
         f = RESULTS / exp / "tables" / f"losses_h{h}.csv"
@@ -86,15 +105,14 @@ def fig_by_size(exp="main", highlight=("SetGRU", "GRU", "DeepSets", "MLP")):
         others = [m for m in d.model.unique() if m not in highlight and m != "EWMA"]
         highlighted_lines(ax, d, "N", "qlike_rel_ewma", list(highlight), others)
         ax.axvspan(20.5, 56, color="#f0efec", zorder=0, lw=0)
-        ax.text(22, ax.get_ylim()[1], "larger than any\ntraining portfolio", va="top", fontsize=6.8, color=INK2)
         ax.set_xscale("log")
         ax.set_xticks(list(groups.values()))
         ax.set_xticklabels([str(v) for v in groups.values()])
         ax.set_title(f"h = {h}", color=INK, fontsize=9)
         ax.set_xlabel("number of assets N")
     axes[0].set_ylabel("QLIKE relative to EWMA")
-    fig.savefig(FIG / f"by_size_{exp}.pdf")
-    plt.close(fig)
+    axes[-1].legend(loc="upper left", bbox_to_anchor=(1.02, 1.0), fontsize=7.5)
+    save(fig, f"by_size_{exp}")
 
 
 def fig_permutation(exp="main", h=5):
@@ -111,11 +129,59 @@ def fig_permutation(exp="main", h=5):
         ax.text(v, yi, f" {v:.2f}", va="center", fontsize=7, color=INK2)
     ax.set_xlabel("median range of log-variance forecast\nacross 5 orderings (×100)")
     ax.grid(axis="y", visible=False)
-    fig.savefig(FIG / f"permutation_{exp}_h{h}.pdf")
+    save(fig, f"permutation_{exp}_h{h}")
+
+
+def fig_conditions(highlight=("MLP", "PENet", "SetTransformer", "EQCov")):
+    """QLIKE (relative to EWMA, in-range portfolios, h=5) of the MLP and three symmetric networks under the training
+    conditions of the second experiment series; one panel per universe (missing conditions are skipped)."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("hyp", Path(__file__).with_name("15_hypotheses.py"))
+    hyp = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(hyp)
+    from pvol.evaluate import group_index, load_run, qlike
+
+    conds = [("", "unlimited\nportfolios"), ("-P500", "pool of\n500"), ("-P50", "pool of\n50"), ("-RAW", "raw\ninputs")]
+    base = Path(str(RESULTS).replace("_stocks", ""))  # this figure always shows both universes
+    roots = [("ETF universe", base), ("Stock universe", Path(str(base) + "_stocks"))]
+    fig, axes = plt.subplots(1, 2, figsize=(7.2, 2.7), sharey=True)
+    for ax, (title, root) in zip(axes, roots):
+        f = root / "main" / "h5" / "targets.npy"
+        if not f.exists():
+            continue
+        import pvol.evaluate as ev
+        old = ev.RESULTS
+        ev.RESULTS = root
+        R = load_run("main", 5)
+        ev.RESULTS = old
+        y = R["y"]
+        ci = hyp.cols_of(group_index(R["ports"]), "in-range")
+        e = np.nanmean(qlike(y, R["F"]["EWMA"])[:, ci])
+        xs = []
+        for k, m in enumerate(highlight):
+            vals = []
+            for j, (suf, _) in enumerate(conds):
+                if m + suf in R["F"]:
+                    vals.append((j, np.nanmean(qlike(y, R["F"][m + suf])[:, ci]) / e))
+            if vals:
+                xs += [v[0] for v in vals]
+                ax.plot([v[0] for v in vals], [v[1] for v in vals], color=SLOTS[k], marker=MARKERS[k], label=lab(m),
+                        markeredgecolor="white", markeredgewidth=0.8, zorder=3)
+        ax.set_xticks(range(len(conds)))
+        ax.set_xticklabels([c[1] for c in conds], fontsize=7.5)
+        ax.set_title(title, color=INK, fontsize=9)
+        ax.set_xlim(-0.3, len(conds) - 0.7)
+    axes[0].set_ylabel("QLIKE relative to EWMA (h = 5)")
+    axes[-1].legend(loc="upper left", bbox_to_anchor=(1.02, 1.0), fontsize=7.5)
+    fig.savefig(FIG / "conditions.pdf")
+    fig.savefig(PREVIEW / "conditions.png", dpi=130)
     plt.close(fig)
 
 
 if __name__ == "__main__":
+    if UNIVERSE_NAME == "etf":
+        fig_conditions()
     fig_yearly()
     fig_by_size()
     for h in HORIZONS:

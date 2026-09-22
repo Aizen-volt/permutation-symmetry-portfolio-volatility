@@ -10,7 +10,10 @@ from pvol.config import RESULTS  # noqa: E402
 from pvol.data import load_panel  # noqa: E402
 
 LABEL = {"equity_us": "US equity", "equity_sector": "US equity sectors", "equity_intl": "International equity",
-         "bond": "Fixed income", "real_estate": "Real estate", "commodity": "Commodities", "fx": "Currencies"}
+         "bond": "Fixed income", "real_estate": "Real estate", "commodity": "Commodities", "fx": "Currencies",
+         "tech": "Information technology", "comm": "Communication services", "cons_disc": "Consumer discretionary",
+         "cons_staples": "Consumer staples", "energy": "Energy", "financials": "Financials", "health": "Health care",
+         "industrials": "Industrials", "materials": "Materials", "utilities": "Utilities"}
 
 if __name__ == "__main__":
     p = load_panel()
@@ -19,7 +22,7 @@ if __name__ == "__main__":
     tick = p["tickers"]
     C = np.corrcoef(R.T)
     rows = []
-    for c in LABEL:
+    for c in [k for k in LABEL if k in set(cls)]:
         ids = np.where(cls == c)[0]
         r = R[:, ids]
         vol = r.std(0) * np.sqrt(252)

@@ -84,8 +84,11 @@ if __name__ == "__main__":
         fam = []
         for a, b in PAIRS_E3:
             if have(a + "-N54", b + "-N54"):
+                # compare only portfolios both models can score (the 54-slot MLP cannot score N > 54, e.g. 122 stocks)
+                ok = np.isfinite(L[a + "-N54"][:, cols]).all(0) & np.isfinite(L[b + "-N54"][:, cols]).all(0)
                 fam.append(dict(hypothesis="HE3" if block == "larger-N" else "HE3 (aux)", block=block, model=a + "-N54",
-                                benchmark=b + "-N54", **test(diff(L, a + "-N54", b + "-N54", cols))))
+                                benchmark=b + "-N54", n_portfolios=int(ok.sum()),
+                                **test(diff(L, a + "-N54", b + "-N54", cols[ok]))))
         rows += hyp.family(fam)
     out = RESULTS / "main" / "tables"
     pd.DataFrame(rows).to_csv(out / "hypotheses_extra.csv", index=False)

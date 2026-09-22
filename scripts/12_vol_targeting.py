@@ -58,7 +58,7 @@ if __name__ == "__main__":
         # annualise the target: daily forecasts are average daily variances -> vol target 1 in annual units
         for m in [x for x in CLASSICAL + NEURAL if x in run["F"]]:
             f = run["F"][m] * 252
-            for b, groups in BLOCKS[exp].items():
+            for b, groups in ((b, g) for b, g in BLOCKS[exp].items() if any(x in gidx for x in g)):
                 cols = np.concatenate([gidx[g] for g in groups if g in gidx])
                 if not np.isfinite(f[:, cols]).all():
                     continue
