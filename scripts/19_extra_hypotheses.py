@@ -45,12 +45,14 @@ if __name__ == "__main__":
     ci = hyp.cols_of(gidx, "in-range")
     cl = hyp.cols_of(gidx, "larger-N")
     e = np.nanmean(L["EWMA"][:, ci])
+    # larger-N levels on the portfolios the 54-slot MLP can score (all of them for ETFs, N = 30, 40 for stocks)
+    cs = cl[np.isfinite(L["MLP-N54"][:, cl]).all(0)] if "MLP-N54" in L else cl
     rows, levels = [], []
     for m in sorted(L):
         if any(m.endswith(s) for s in ("-RAW", "-P50", "-P500", "-N54")) or m in {a for p in PAIRS_E2 for a in p}:
             levels.append(dict(model=m, qlike_rel_ewma_in_range=np.nanmean(L[m][:, ci]) / e,
-                               qlike_rel_ewma_larger=np.nanmean(L[m][:, cl]) / np.nanmean(L["EWMA"][:, cl])
-                               if np.isfinite(L[m][:, cl]).all() else np.nan))
+                               qlike_rel_ewma_larger=np.nanmean(L[m][:, cs]) / np.nanmean(L["EWMA"][:, cs])
+                               if np.isfinite(L[m][:, cs]).all() else np.nan))
 
     def have(*ms):
         return all(m in L for m in ms)

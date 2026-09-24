@@ -1,5 +1,11 @@
-"""Figures for the paper (vector PDF). Palette: validated categorical slots (blue, orange, aqua, yellow) for at most four
-highlighted series per panel, markers as secondary encoding, remaining models in recessive gray; one y-axis per panel."""
+"""Figures for the paper (vector PDF, drawn at the final printed width so that fonts are not scaled).
+
+Style: Computer Modern like the text; the same four networks in the same validated colours in every figure (MLP,
+PE-Net, Set Transformer, EQ-Cov; markers as secondary encoding); the best classical model of each panel as a black dashed
+line labelled directly; one legend below the figure; ETF and stock universe as the two rows of one figure.
+Run once (it reads both universes).
+"""
+import importlib.util
 import sys
 from pathlib import Path
 
@@ -7,183 +13,242 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 import matplotlib  # noqa: E402
 
 matplotlib.use("Agg")
+import matplotlib.dates as mdates  # noqa: E402
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
-from pvol.config import HORIZONS, RESULTS, UNIVERSE_NAME  # noqa: E402
+import pvol.evaluate as ev  # noqa: E402
+from pvol.config import HORIZONS, RESULTS  # noqa: E402
+from pvol.evaluate import CLASSICAL, group_index, load_run, qlike  # noqa: E402
 
-FIG = Path(__file__).resolve().parents[1] / "paper" / "figures"
+ROOT = Path(__file__).resolve().parents[1]
+FIG = ROOT / "paper" / "figures"
+PREVIEW = ROOT / "results" / "figure_previews"
 FIG.mkdir(parents=True, exist_ok=True)
-PREVIEW = Path(__file__).resolve().parents[1] / "results" / "figure_previews"
 PREVIEW.mkdir(parents=True, exist_ok=True)
+BASE = Path(str(RESULTS).replace("_stocks", ""))
+UNIVERSES = [("ETF", BASE), ("Stocks", Path(str(BASE) + "_stocks"))]
 
-
-SUF = "" if UNIVERSE_NAME == "etf" else f"_{UNIVERSE_NAME}"
-
-
-def save(fig, name):
-    name = name + SUF
-    fig.savefig(FIG / f"{name}.pdf")
-    fig.savefig(PREVIEW / f"{name}.png", dpi=130)
-    plt.close(fig)
-
-SLOTS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100"]
-MARKERS = ["o", "s", "^", "D"]
-GRAY = "#b9b8b2"
-INK, INK2, GRID, AXIS = "#0b0b0b", "#52514e", "#e1e0d9", "#c3c2b7"
+TEXTWIDTH = 6.3  # inches (16 cm, the text width of the manuscript)
+HIGHLIGHT = ["MLP", "PENet", "SetTransformer", "EQCov"]
+COLOR = dict(zip(HIGHLIGHT, ["#2a78d6", "#eb6834", "#1baf7a", "#eda100"]))
+MARKER = dict(zip(HIGHLIGHT, ["o", "s", "^", "D"]))
+INK, INK2, GRID, AXIS, SHADE = "#1a1a1a", "#4d4d4d", "#e6e6e6", "#9a9a9a", "#efefef"
+LABEL = {"SetTransformer": "Set Transformer", "DeepSets": "Deep Sets", "EQCov": "EQ-Cov", "PENet": "PE-Net",
+         "SetGRU": "Set-GRU", "HARX": "HAR-X", "GJR": "GJR-GARCH", "DCCNL": "DCC-NL"}
 
 plt.rcParams.update({
-    "font.family": "sans-serif", "font.size": 8.5, "axes.edgecolor": AXIS, "axes.labelcolor": INK2,
-    "xtick.color": INK2, "ytick.color": INK2, "axes.grid": True, "grid.color": GRID, "grid.linewidth": 0.6,
-    "axes.spines.top": False, "axes.spines.right": False, "lines.linewidth": 1.6, "lines.markersize": 4.5,
-    "legend.frameon": False, "figure.dpi": 150, "savefig.bbox": "tight",
+    "font.family": "serif", "font.serif": ["cmr10"], "mathtext.fontset": "cm", "axes.formatter.use_mathtext": True,
+    "axes.unicode_minus": False, "font.size": 9, "axes.titlesize": 9, "axes.labelsize": 9, "xtick.labelsize": 8,
+    "ytick.labelsize": 8, "legend.fontsize": 8.5, "axes.edgecolor": AXIS, "axes.labelcolor": INK, "xtick.color": INK2,
+    "ytick.color": INK2, "axes.grid": True, "grid.color": GRID, "grid.linewidth": 0.6, "axes.spines.top": False,
+    "axes.spines.right": False, "axes.linewidth": 0.7, "lines.linewidth": 1.5, "lines.markersize": 4.5,
+    "legend.frameon": False, "savefig.bbox": "tight", "savefig.pad_inches": 0.02, "pdf.fonttype": 42,
 })
 
-LABEL = {"SetTransformer": "Set Transformer", "DeepSets": "Deep Sets", "EQCov": "EQ-Cov", "PENet": "PE-Net",
-         "SetGRU": "Set-GRU", "HARX": "HAR-X", "MLP-sorted": "MLP-sorted"}
+_spec = importlib.util.spec_from_file_location("hyp", Path(__file__).with_name("15_hypotheses.py"))
+hyp = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(hyp)
 
 
 def lab(m):
     return LABEL.get(m, m)
 
 
-OMIT = {"LW", "HIST", "EWMANLS", "EWMA"}  # static / far-off benchmarks stay in the tables, not in the figures
-
-
-def highlighted_lines(ax, df, x, y, highlight, others, xlabels=None):
-    others = [m for m in others if m not in OMIT]
-    for m in others:
-        d = df[df.model == m].sort_values(x)
-        if len(d):
-            ax.plot(d[x], d[y], color=GRAY, lw=0.9, zorder=1)
-    for k, m in enumerate(highlight):
-        d = df[df.model == m].sort_values(x)
-        if not len(d):
-            continue
-        ax.plot(d[x], d[y], color=SLOTS[k], marker=MARKERS[k], label=lab(m), zorder=3,
-                markeredgecolor="white", markeredgewidth=0.8)
-    ax.axhline(1.0, color=AXIS, lw=0.8, zorder=0)
-    shown = df[df.model.isin(list(highlight) + others)][y]
-    lo, hi = shown.min(), np.nanpercentile(shown, 99)
-    ax.set_ylim(lo - 0.05 * (hi - lo), hi + 0.08 * (hi - lo))
-
-
-def fig_yearly(exp="main", highlight=("SetGRU", "GRU", "DeepSets", "MLP"), bench=("HARX", "DCC")):
-    fig, axes = plt.subplots(1, len(HORIZONS), figsize=(7.2, 2.5), sharey=False)
-    for ax, h in zip(axes, HORIZONS):
-        f = RESULTS / exp / "tables" / f"yearly_h{h}.csv"
-        if not f.exists():
-            continue
-        d = pd.read_csv(f)
-        ref = d[d.model == "EWMA"].set_index("year").qlike
-        d["rel"] = d.qlike / d.year.map(ref)
-        others = [m for m in d.model.unique() if m not in highlight and m != "EWMA"]
-        highlighted_lines(ax, d, "year", "rel", list(highlight), others)
-        ax.set_title(f"h = {h}", color=INK, fontsize=9)
-        ax.set_xticks(sorted(d.year.unique()))
-        ax.set_xticklabels([str(y)[2:] for y in sorted(d.year.unique())])
-        ax.set_xlabel("test year (20xx)")
-    axes[0].set_ylabel("QLIKE relative to EWMA")
-    axes[-1].legend(loc="upper left", bbox_to_anchor=(1.02, 1.0), fontsize=7.5)
-    save(fig, f"yearly_{exp}")
-
-
-def fig_by_size(exp="main", highlight=("SetGRU", "GRU", "DeepSets", "MLP")):
-    from pvol.portfolios import load as load_ports
-
-    n_all = max(len(q["ids"]) for q in load_ports(RESULTS / exp / "portfolios.json"))
-    groups = {"N5": 5, "N10": 10, "N20": 20, "N30": 30, "N40": 40, "EW-all": n_all}
-    fig, axes = plt.subplots(1, len(HORIZONS), figsize=(7.2, 2.5))
-    for ax, h in zip(axes, HORIZONS):
-        f = RESULTS / exp / "tables" / f"losses_h{h}.csv"
-        if not f.exists():
-            continue
-        d = pd.read_csv(f)
-        d = d[d.block.isin(groups)].copy()
-        d["N"] = d.block.map(groups)
-        others = [m for m in d.model.unique() if m not in highlight and m != "EWMA"]
-        highlighted_lines(ax, d, "N", "qlike_rel_ewma", list(highlight), others)
-        ax.axvspan(20.5, 56, color="#f0efec", zorder=0, lw=0)
-        ax.set_xscale("log")
-        ax.set_xticks(list(groups.values()))
-        ax.set_xticklabels([str(v) for v in groups.values()])
-        ax.set_title(f"h = {h}", color=INK, fontsize=9)
-        ax.set_xlabel("number of assets N")
-    axes[0].set_ylabel("QLIKE relative to EWMA")
-    axes[-1].legend(loc="upper left", bbox_to_anchor=(1.02, 1.0), fontsize=7.5)
-    save(fig, f"by_size_{exp}")
-
-
-def fig_permutation(exp="main", h=5):
-    f = RESULTS / exp / "tables" / f"perm_h{h}.csv"
-    if not f.exists():
-        return
-    d = pd.read_csv(f).sort_values("median_range_logvar")
-    fig, ax = plt.subplots(figsize=(3.6, 2.4))
-    y = np.arange(len(d))
-    ax.barh(y, d.median_range_logvar * 100, color=SLOTS[0], height=0.6)
-    ax.set_yticks(y)
-    ax.set_yticklabels([lab(m) for m in d.model])
-    for yi, v in zip(y, d.median_range_logvar * 100):
-        ax.text(v, yi, f" {v:.2f}", va="center", fontsize=7, color=INK2)
-    ax.set_xlabel("median range of log-variance forecast\nacross 5 orderings (×100)")
-    ax.grid(axis="y", visible=False)
-    save(fig, f"permutation_{exp}_h{h}")
-
-
-def fig_conditions(highlight=("MLP", "PENet", "SetTransformer", "EQCov")):
-    """QLIKE (relative to EWMA, in-range portfolios, h=5) of the MLP and three symmetric networks under the training
-    conditions of the second experiment series; one panel per universe (missing conditions are skipped)."""
-    import importlib.util
-
-    spec = importlib.util.spec_from_file_location("hyp", Path(__file__).with_name("15_hypotheses.py"))
-    hyp = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(hyp)
-    from pvol.evaluate import group_index, load_run, qlike
-
-    conds = [("", "unlimited\nportfolios"), ("-P500", "pool of\n500"), ("-P50", "pool of\n50"), ("-RAW", "raw\ninputs")]
-    base = Path(str(RESULTS).replace("_stocks", ""))  # this figure always shows both universes
-    roots = [("ETF universe", base), ("Stock universe", Path(str(base) + "_stocks"))]
-    fig, axes = plt.subplots(1, 2, figsize=(7.2, 2.7), sharey=True)
-    for ax, (title, root) in zip(axes, roots):
-        f = root / "main" / "h5" / "targets.npy"
-        if not f.exists():
-            continue
-        import pvol.evaluate as ev
-        old = ev.RESULTS
-        ev.RESULTS = root
-        R = load_run("main", 5)
-        ev.RESULTS = old
-        y = R["y"]
-        ci = hyp.cols_of(group_index(R["ports"]), "in-range")
-        e = np.nanmean(qlike(y, R["F"]["EWMA"])[:, ci])
-        xs = []
-        for k, m in enumerate(highlight):
-            vals = []
-            for j, (suf, _) in enumerate(conds):
-                if m + suf in R["F"]:
-                    vals.append((j, np.nanmean(qlike(y, R["F"][m + suf])[:, ci]) / e))
-            if vals:
-                xs += [v[0] for v in vals]
-                ax.plot([v[0] for v in vals], [v[1] for v in vals], color=SLOTS[k], marker=MARKERS[k], label=lab(m),
-                        markeredgecolor="white", markeredgewidth=0.8, zorder=3)
-        ax.set_xticks(range(len(conds)))
-        ax.set_xticklabels([c[1] for c in conds], fontsize=7.5)
-        ax.set_title(title, color=INK, fontsize=9)
-        ax.set_xlim(-0.3, len(conds) - 0.7)
-    axes[0].set_ylabel("QLIKE relative to EWMA (h = 5)")
-    axes[-1].legend(loc="upper left", bbox_to_anchor=(1.02, 1.0), fontsize=7.5)
-    fig.savefig(FIG / "conditions.pdf")
-    fig.savefig(PREVIEW / "conditions.png", dpi=130)
+def save(fig, name):
+    fig.savefig(FIG / f"{name}.pdf")
+    fig.savefig(PREVIEW / f"{name}.png", dpi=150)
     plt.close(fig)
 
 
+def run(root, h):
+    """load_run for an explicit universe (evaluate.load_run reads the module-level RESULTS)."""
+    old, ev.RESULTS = ev.RESULTS, root
+    try:
+        return load_run("main", h)
+    finally:
+        ev.RESULTS = old
+
+
+def best_classical(root, h):
+    d = pd.read_csv(root / "main" / "tables" / f"losses_h{h}.csv")
+    d = d[(d.block == "in-range") & d.model.isin(CLASSICAL)]
+    return d.loc[d.qlike_rel_ewma.idxmin(), "model"]
+
+
+def model_line(ax, x, y, m, **kw):
+    ax.plot(x, y, color=COLOR[m], marker=MARKER[m], label=lab(m), markeredgecolor="white", markeredgewidth=0.6,
+            zorder=3, **kw)
+
+
+def bench_line(ax, x, y, name):
+    ax.plot(x, y, color=INK, lw=1.2, ls=(0, (4, 2)), zorder=2, label="best classical model")
+
+
+def panel_title(ax, u, h, b):
+    ax.set_title(f"{u}, $h={h}$ (vs {lab(b)})", fontsize=8.5)
+
+
+def bottom_legend(fig, axes, ncol=5):
+    handles, labels = [], []
+    for ax in np.ravel(axes):
+        for hd, lb in zip(*ax.get_legend_handles_labels()):
+            if lb not in labels:
+                handles.append(hd)
+                labels.append(lb)
+    fig.legend(handles, labels, loc="lower center", ncol=ncol, bbox_to_anchor=(0.5, -0.01), handlelength=2.4,
+               columnspacing=1.6)
+
+
+
+
+# ------------------------------------------------------------------------------------------------ figures
+def fig_conditions():
+    """QLIKE (in-range, h=5) of the four networks under the training conditions of the second experiment series."""
+    conds = [("", "unlimited\nportfolios"), ("-P500", "pool of\n500"), ("-P50", "pool of\n50"), ("-RAW", "raw\ninputs")]
+    fig, axes = plt.subplots(1, 2, figsize=(TEXTWIDTH, 2.55), sharey=True)
+    for ax, (u, root) in zip(axes, UNIVERSES):
+        R = run(root, 5)
+        ci = hyp.cols_of(group_index(R["ports"]), "in-range")
+        e = np.nanmean(qlike(R["y"], R["F"]["EWMA"])[:, ci])
+        for m in HIGHLIGHT:
+            pts = [(j, np.nanmean(qlike(R["y"], R["F"][m + s])[:, ci]) / e) for j, (s, _) in enumerate(conds)
+                   if m + s in R["F"]]
+            model_line(ax, [p[0] for p in pts], [p[1] for p in pts], m)
+        ax.set_xticks(range(len(conds)))
+        ax.set_xticklabels([c[1] for c in conds])
+        ax.set_xlim(-0.3, len(conds) - 0.7)
+        ax.set_title(f"{u} universe")
+        ax.grid(axis="x", visible=False)
+    axes[0].set_ylabel("QLIKE relative to EWMA")
+    fig.tight_layout(rect=(0, 0.1, 1, 1))
+    bottom_legend(fig, axes, ncol=4)
+    save(fig, "conditions")
+
+
+def fig_by_size():
+    groups = {"N5": 5, "N10": 10, "N20": 20, "N30": 30, "N40": 40}
+    fig, axes = plt.subplots(2, 3, figsize=(TEXTWIDTH, 4.3))
+    for r, (u, root) in enumerate(UNIVERSES):
+        n_all = 54 if u == "ETF" else 122
+        g = dict(groups, **{"EW-all": n_all})
+        for c, h in enumerate(HORIZONS):
+            ax = axes[r, c]
+            d = pd.read_csv(root / "main" / "tables" / f"losses_h{h}.csv")
+            d = d[d.block.isin(g)].assign(N=lambda x: x.block.map(g))
+            for m in HIGHLIGHT:
+                s = d[d.model == m].sort_values("N")
+                model_line(ax, s.N.to_numpy(), s.qlike_rel_ewma.to_numpy(), m)
+            b = best_classical(root, h)
+            s = d[d.model == b].sort_values("N")
+            bench_line(ax, s.N.to_numpy(), s.qlike_rel_ewma.to_numpy(), b)
+            ax.axvspan(24, n_all * 1.15, color=SHADE, zorder=0, lw=0)
+            ax.set_xscale("log")
+            ticks = [5, 10, 20, 40, n_all]
+            ax.set_xticks(ticks)
+            ax.set_xticklabels([str(v) for v in ticks])
+            ax.minorticks_off()
+            ax.set_xlim(4.3, n_all * 1.15)
+            panel_title(ax, u, h, b)
+            if r == 1:
+                ax.set_xlabel("number of constituents $N$")
+        axes[r, 0].set_ylabel("QLIKE relative to EWMA")
+    fig.tight_layout(rect=(0, 0.06, 1, 1), h_pad=1.0, w_pad=1.2)
+    bottom_legend(fig, axes)
+    save(fig, "by_size")
+
+
+def fig_yearly():
+    fig, axes = plt.subplots(2, 3, figsize=(TEXTWIDTH, 4.3), sharex=True)
+    for r, (u, root) in enumerate(UNIVERSES):
+        for c, h in enumerate(HORIZONS):
+            ax = axes[r, c]
+            d = pd.read_csv(root / "main" / "tables" / f"yearly_h{h}.csv")
+            ref = d[d.model == "EWMA"].set_index("year").qlike
+            d["rel"] = d.qlike / d.year.map(ref)
+            for m in HIGHLIGHT:
+                s = d[d.model == m].sort_values("year")
+                model_line(ax, s.year.to_numpy(), s.rel.to_numpy(), m)
+            b = best_classical(root, h)
+            s = d[d.model == b].sort_values("year")
+            bench_line(ax, s.year.to_numpy(), s.rel.to_numpy(), b)
+            ax.axhline(1.0, color=AXIS, lw=0.7, zorder=1)
+            ax.set_xticks([2020, 2022, 2024, 2026])
+            ax.set_xlim(2019.7, 2026.3)
+            panel_title(ax, u, h, b)
+            if r == 1:
+                ax.set_xlabel("test year")
+        axes[r, 0].set_ylabel("QLIKE relative to EWMA")
+    fig.tight_layout(rect=(0, 0.06, 1, 1), h_pad=1.0, w_pad=1.2)
+    bottom_legend(fig, axes)
+    save(fig, "yearly")
+
+
+EPISODES = [("2020-02-20", "2020-05-29"), ("2025-03-31", "2025-05-30")]  # COVID crash, 2025 tariff shock
+
+
+def fig_cumdiff():
+    """Cumulative sum of the daily in-range QLIKE differential (network minus best classical model)."""
+    from pvol.data import load_panel
+    import pvol.data as pdata
+
+    fig, axes = plt.subplots(2, 3, figsize=(TEXTWIDTH, 4.3), sharex=True)
+    for r, (u, root) in enumerate(UNIVERSES):
+        old = pdata.PROCESSED
+        pdata.PROCESSED = ROOT / "data" / ("processed" if u == "ETF" else "processed_stocks")
+        dates = pd.to_datetime(load_panel()["dates"])
+        pdata.PROCESSED = old
+        for c, h in enumerate(HORIZONS):
+            ax = axes[r, c]
+            R = run(root, h)
+            ci = hyp.cols_of(group_index(R["ports"]), "in-range")
+            t = dates[R["origins"]]
+            b = best_classical(root, h)
+            lb = np.nanmean(qlike(R["y"], R["F"][b])[:, ci], 1)
+            for s, e in EPISODES:
+                ax.axvspan(pd.Timestamp(s), pd.Timestamp(e), color=SHADE, zorder=0, lw=0)
+            for m in HIGHLIGHT:
+                cs = np.cumsum(np.nanmean(qlike(R["y"], R["F"][m])[:, ci], 1) - lb)
+                ax.plot(t, cs, color=COLOR[m], lw=1.2, label=lab(m), zorder=3)
+            ax.axhline(0.0, color=AXIS, lw=0.7, zorder=1)
+            panel_title(ax, u, h, b)
+            ax.xaxis.set_major_locator(mdates.YearLocator(2))
+            ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
+        axes[r, 0].set_ylabel("cumulative QLIKE difference")
+    fig.tight_layout(rect=(0, 0.06, 1, 1), h_pad=1.0, w_pad=1.2)
+    bottom_legend(fig, axes, ncol=4)
+    save(fig, "cumdiff")
+
+
+def fig_eqcov():
+    """EQ-Cov (ETF, h=5, seed 0): mixing weights of the correlation forecast and its average pairwise correlation."""
+    d = pd.read_csv(BASE / "main" / "tables" / "eqcov_diagnostics_h5.csv", parse_dates=["date"])
+    parts = [("pi_ewma", "EWMA"), ("pi_corr66", "66-day"), ("pi_gram", "learned $AA^\\top$"), ("pi_corr22", "22-day")]
+    colors = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100"]
+    fig, (a1, a2) = plt.subplots(2, 1, figsize=(TEXTWIDTH, 3.6), sharex=True, gridspec_kw=dict(height_ratios=[1.25, 1]))
+    a1.stackplot(d.date, *[d[c] for c, _ in parts], labels=[n for _, n in parts], colors=colors, lw=0)
+    a1.set_ylim(0, 1)
+    a1.set_ylabel("mixing weight $\\pi$")
+    a1.legend(loc="upper center", bbox_to_anchor=(0.5, 1.2), ncol=4, title=None)
+    a2.plot(d.date, d.mean_corr_ewma, color=AXIS, lw=1.0, label="EWMA input")
+    a2.plot(d.date, d.mean_corr_hat, color=INK, lw=1.0, label="EQ-Cov forecast")
+    a2.set_ylabel("mean correlation")
+    a2.legend(loc="upper right", ncol=2)
+    for ax in (a1, a2):
+        ax.grid(axis="x", visible=False)
+        for y in range(2021, 2027):
+            ax.axvline(pd.Timestamp(f"{y}-01-01"), color="white" if ax is a1 else GRID, lw=0.8, zorder=2)
+        ax.xaxis.set_major_locator(mdates.YearLocator())
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
+    fig.tight_layout(h_pad=0.8)
+    save(fig, "eqcov_diagnostics")
+
+
 if __name__ == "__main__":
-    if UNIVERSE_NAME == "etf":
-        fig_conditions()
-    fig_yearly()
+    fig_conditions()
     fig_by_size()
-    for h in HORIZONS:
-        fig_permutation(h=h)
+    fig_yearly()
+    fig_cumdiff()
+    fig_eqcov()
     print("figures written to", FIG)
