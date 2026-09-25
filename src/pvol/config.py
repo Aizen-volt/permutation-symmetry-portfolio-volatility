@@ -5,7 +5,7 @@ ROOT = Path(__file__).resolve().parents[2]
 # PVOL_UNIVERSE selects the asset universe: "etf" (main study, default) or "stocks" (robustness study)
 UNIVERSE_NAME = os.environ.get("PVOL_UNIVERSE", "etf")
 _SUFFIX = "" if UNIVERSE_NAME == "etf" else f"_{UNIVERSE_NAME}"
-RAW = ROOT / "data" / f"raw{_SUFFIX}"
+RAW = ROOT / "data" / ("raw_stocks" if UNIVERSE_NAME == "stocks54" else f"raw{_SUFFIX}")  # stocks54: subsample of the 122 stocks
 PROCESSED = ROOT / "data" / f"processed{_SUFFIX}"
 RESULTS = ROOT / f"results{_SUFFIX}"
 

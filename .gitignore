@@ -3,6 +3,7 @@
 /logs/
 /results/
 /results_stocks/
+/results_stocks54/
 /.idea/
 /.pytest_cache/
 __pycache__/

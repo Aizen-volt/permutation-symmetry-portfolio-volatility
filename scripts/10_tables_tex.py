@@ -30,8 +30,7 @@ def stars(p):
 
 BASE = Path(str(RESULTS).replace("_stocks", ""))
 UNIVERSES = [("ETF", BASE), ("Stocks", Path(str(BASE) + "_stocks"))]
-PAIRS = [("DeepSets", "MLP"), ("PENet", "MLP"), ("SetTransformer", "MLP"), ("EQCov", "MLP"), ("MLP-sorted", "MLP"),
-         ("SetGRU", "GRU"), ("DeepSets", "PortMLP"), ("EQCov", "DCC")]
+PAIRS = [("MLP-sorted", "MLP"), ("DeepSets", "PortMLP"), ("EQCov", "DCC"), ("EQCov", "DCCNL")]
 
 
 def qlike_cells(root, exp="main"):
@@ -76,7 +75,7 @@ def main_table(exp="main"):
          "\\cmidrule(lr){3-5}\\cmidrule(lr){6-8}",
          "Model & Sym. & " + " & ".join(f"$h={h}$" for _ in UNIVERSES for h in HORIZONS) + "\\\\ \\midrule"]
     for m in models:
-        if m == NEURAL[0]:
+        if m in (NEURAL[0], "DeepSets"):
             L.append("\\midrule")
         vals = [cells[u].get((h, "in-range"), {}).get(m, "--") for u, _ in UNIVERSES for h in HORIZONS]
         L.append(f"{lab(m)} & {SYM.get(m, '')} & " + " & ".join(vals) + "\\\\")
@@ -105,7 +104,7 @@ def blocks_table(exp="main"):
              " ".join(f"\\cmidrule(lr){{{2 + i * len(blocks)}-{1 + (i + 1) * len(blocks)}}}" for i in range(len(HORIZONS))),
              "Model & " + " & ".join(short[b] for _ in HORIZONS for b, _ in blocks) + "\\\\ \\midrule"]
         for m in models:
-            if m == NEURAL[0]:
+            if m in (NEURAL[0], "DeepSets"):
                 L.append("\\midrule")
             L.append(f"{lab(m)} & " + " & ".join(cells.get(c, {}).get(m, "--") for c in cols) + "\\\\")
         L += ["\\bottomrule\\end{tabular}", "\\end{table}"]
@@ -128,10 +127,11 @@ def dm_table(exp="main", block="in-range"):
                     cells[(u, a, c, h)] = f"${r.dm_stat:.2f}{stars(r.p_value)}$"
     what = "in-range portfolios" if block == "in-range" else "portfolios of assets excluded from training"
     L = ["\\begin{table}[t]\\centering\\footnotesize\\setlength{\\tabcolsep}{5pt}",
-         "\\caption{Diebold--Mariano tests of equal QLIKE for pairs of networks, " + what + " (HLN-corrected statistics on "
-         "daily cross-sectional average loss differentials, unadjusted significance). Negative values favour the first "
-         "model. $^{*}$, $^{**}$, $^{***}$: 10\\%, 5\\%, 1\\%. Holm-adjusted verdicts are in Table~\\ref{tab:scoreboard} "
-         "and \\ref{app:tests}.}\\label{tab:dm_" + exp + "}",
+         "\\caption{Diebold--Mariano tests of equal QLIKE for comparisons outside the hypotheses, " + what + " "
+         "(HLN-corrected statistics on daily cross-sectional average loss differentials, unadjusted significance): "
+         "canonicalisation, reading the constituents, and a learned against a classical covariance model. Negative values "
+         "favour the first model. $^{*}$, $^{**}$, $^{***}$: 10\\%, 5\\%, 1\\%. The matched comparisons of the "
+         "hypotheses are in \\ref{app:tests}.}\\label{tab:dm_" + exp + "}",
          "\\begin{tabular}{lrrrrrr}\\toprule",
          " & " + " & ".join(f"\\multicolumn{{3}}{{c}}{{{u}}}" for u, _ in UNIVERSES) + "\\\\",
          "\\cmidrule(lr){2-4}\\cmidrule(lr){5-7}",
@@ -155,12 +155,16 @@ def perm_table_both(exp="main"):
             if f.exists() and f.stat().st_size > 10:
                 for _, r in pd.read_csv(f).iterrows():
                     vals[(u, r.model, h)] = (r.median_range_logvar, r.p99_range_logvar)
-    models = [m for m in NEURAL if any((u, m, h) in vals for u, _ in UNIVERSES for h in HORIZONS)]
+    models = [m for m in NEURAL + ["MLP-TTA", "GRU-TTA"]
+              if any((u, m, h) in vals for u, _ in UNIVERSES for h in HORIZONS)
+              and any(vals.get((u, m, h), (0, 0))[1] > 1e-4 for u, _ in UNIVERSES for h in HORIZONS)]
     L = ["\\begin{table}[t]\\centering\\footnotesize\\setlength{\\tabcolsep}{5pt}",
          "\\caption{Permutation consistency: the same 100 ten-asset portfolios are forecast with their constituents listed "
          "in five different orders. Median (panel A) and 99th percentile (panel B), over portfolios and origins, of the "
          "range of the log-variance forecast across the orderings; averages over seeds. A range of 0.07 means that two "
-         "orderings of the same portfolio receive variance forecasts that differ by about 7\\%.}\\label{tab:perm}",
+         "orderings of the same portfolio receive variance forecasts that differ by about 7\\%. For PortMLP, MLP-sorted "
+         "and all architecturally symmetric networks the range is zero up to floating-point error ($<10^{-6}$).}"
+         "\\label{tab:perm}",
          "\\begin{tabular}{lrrrrrr}\\toprule",
          " & " + " & ".join(f"\\multicolumn{{3}}{{c}}{{{u}}}" for u, _ in UNIVERSES) + "\\\\",
          "\\cmidrule(lr){2-4}\\cmidrule(lr){5-7}",
@@ -180,13 +184,14 @@ def var_table_both(exp="main"):
     L = ["\\begin{table}[t]\\centering\\footnotesize\\setlength{\\tabcolsep}{4.5pt}",
          "\\caption{Backtest of one-day Gaussian value-at-risk for the in-range portfolios, 2020--2026: hit rates at the 1\\% "
          "and 5\\% levels and, at the 1\\% level, the share of portfolios for which the unconditional coverage "
-         "\\citep{kupiec1995} and conditional coverage \\citep{christoffersen1998} tests reject at 5\\%.}\\label{tab:var}",
+         "\\citep{kupiec1995} and conditional coverage \\citep{christoffersen1998} tests reject at 5\\%. All entries in per "
+         "cent.}\\label{tab:var}",
          "\\begin{tabular}{lrrrrrrrr}\\toprule",
          " & " + " & ".join(f"\\multicolumn{{4}}{{c}}{{{u}}}" for u, _ in UNIVERSES) + "\\\\",
          "\\cmidrule(lr){2-5}\\cmidrule(lr){6-9}",
          "Model & " + " & ".join("hit 1\\% & UC & CC & hit 5\\%" for _ in UNIVERSES) + "\\\\ \\midrule"]
     for m in models:
-        if m == NEURAL[0]:
+        if m in (NEURAL[0], "DeepSets"):
             L.append("\\midrule")
         cells = []
         for u, _ in UNIVERSES:
@@ -209,7 +214,8 @@ def universe_table(root, name, caption, label):
     d = pd.read_csv(f)
     L = ["\\begin{table}[t]\\centering\\small", f"\\caption{{{caption}}}\\label{{{label}}}",
          "\\begin{tabular}{p{2.8cm}rp{5.4cm}rrrr}\\toprule",
-         "Class & $n$ & Tickers & Ret. & Vol. & $\\bar\\rho_{\\text{within}}$ & $\\bar\\rho_{\\text{other}}$\\\\ \\midrule"]
+         "Class & $n$ & Tickers & Ret. & Vol. & $\\overline{\\text{corr}}_{\\text{in}}$ & "
+         "$\\overline{\\text{corr}}_{\\text{out}}$\\\\ \\midrule"]
     for _, r in d.iterrows():
         L.append(f"{r.asset_class} & {r.n} & {r.tickers} & {100 * r.ann_ret:.1f}\\% & {100 * r.ann_vol:.1f}\\% & "
                  f"{r.corr_within:.2f} & {r.corr_other:.2f}\\\\")
@@ -219,14 +225,17 @@ def universe_table(root, name, caption, label):
 
 if __name__ == "__main__":
     universe_table(RESULTS, "universe",
-                   "Investment universe: 54 US-listed ETFs, daily data 19 December 2007 -- 18 September 2026. Annualised mean "
-                   "return and volatility are averages over the funds in each class; $\\bar\\rho_{\\text{within}}$ "
-                   "($\\bar\\rho_{\\text{other}}$) is the average pairwise correlation of daily returns within the class "
-                   "(with funds of other classes).", "tab:universe")
+                   "Investment universe: 54 US-listed ETFs, daily data 19 December 2007 -- 18 September 2026. Annualised arithmetic "
+                   "mean return and volatility are averages over the funds in each class; "
+                   "$\\overline{\\text{corr}}_{\\text{in}}$ ($\\overline{\\text{corr}}_{\\text{out}}$) is the average "
+                   "pairwise correlation of daily returns within the class (with funds of other classes).", "tab:universe")
     universe_table(Path(str(RESULTS) + "_stocks"), "universe_stocks",
                    "Second universe: 122 large US stocks by GICS sector, same sample period and statistics as in "
                    "Table~\\ref{tab:universe}. The stocks are today's large capitalisations with a complete price history, "
-                   "which explains the high average returns (survivorship bias).", "tab:universe_stocks")
+                   "which explains the high average returns (survivorship bias). Sectors follow GICS with one inconsistency: ADP is "
+                   "labelled Information Technology, its sector before the March 2023 GICS revision (now Industrials), "
+                   "while Mastercard follows the revised classification (Financials); the sector label enters the "
+                   "networks only as an input dummy.", "tab:universe_stocks")
     if UNIVERSE_NAME == "etf":  # the combined tables read both universes
         main_table()
         blocks_table()

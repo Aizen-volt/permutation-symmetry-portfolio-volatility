@@ -86,7 +86,8 @@ class Experiment:
         return t_idx
 
     # ------------------------------------------------------------------ neural networks
-    def run_nn(self, name, h, seeds, hp=None, cfg=None, years=TEST_YEARS, tag=None, skip_existing=True, train_years=None):
+    def run_nn(self, name, h, seeds, hp=None, cfg=None, years=TEST_YEARS, tag=None, skip_existing=True, train_years=None,
+               tta_k=0):
         d = self.hdir(h)
         tag = tag or name
         for seed in seeds:
@@ -98,8 +99,8 @@ class Experiment:
                 split = make_split(self.panel.dates, self.panel.first_valid, y, h, train_years=train_years)
                 model, info = train_model(name, self.panel, split, h, seed, cfg=cfg, hp=hp)
                 t_idx = origins_in_year(self.panel.dates, y, h)
-                parts.append(predict_portfolios(model, name, self.panel, self.portfolios, t_idx))
-                perm_parts.append(predict_portfolios(model, name, self.panel, self.perm_portfolios, t_idx))
+                parts.append(predict_portfolios(model, name, self.panel, self.portfolios, t_idx, tta_k=tta_k))
+                perm_parts.append(predict_portfolios(model, name, self.panel, self.perm_portfolios, t_idx, tta_k=tta_k))
                 info.update(year=y, tag=tag)
                 (d / "info" / f"{tag}__s{seed}__y{y}.json").write_text(json.dumps(info))
                 print(f"[{self.name} h={h}] {tag} seed={seed} year={y}: val {info['best_val']:.4f} "

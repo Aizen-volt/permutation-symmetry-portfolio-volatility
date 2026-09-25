@@ -31,7 +31,7 @@ def perturbed_output(model, panel, t, S, w, perm, gru_len):
         return model(inp).double(), model(inp_p).double()
 
 
-@pytest.mark.parametrize("name", ["PortMLP", "DeepSets", "PENet", "SetTransformer", "SetGRU", "EQCov", "MLP-sorted"])
+@pytest.mark.parametrize("name", ["PortMLP", "DeepSets", "PENet", "SetTransformer", "SetGRU", "EQCov", "MLP-sorted", "DeepSetsP"])
 def test_invariant_models(panel, name):
     p, split = panel
     torch.manual_seed(0)
@@ -120,7 +120,7 @@ def test_raw_mode_removes_portfolio_summaries(panel):
     assert torch.unique(inp["base"]).numel() == 1
 
 
-@pytest.mark.parametrize("name", ["DeepSets", "PENet", "SetTransformer"])
+@pytest.mark.parametrize("name", ["DeepSets", "PENet", "SetTransformer", "DeepSetsP"])
 def test_invariance_in_raw_mode(panel, name):
     p, split = panel
     torch.manual_seed(0)
@@ -149,3 +149,18 @@ def test_portfolio_pool(panel):
     rows = {tuple(r) for r in pool.groups[N][0].tolist()}
     assert all(tuple(r) in rows for r in S.tolist())  # only pool portfolios, in their fixed order
     assert torch.allclose(w.sum(1), torch.ones(64, device=DEV))
+
+
+def test_portfolio_pool_shuffle(panel):
+    """Experiment R1: the same pool portfolios, with the assets listed in a new random order in every draw."""
+    from pvol.dataset import PortfolioPool
+
+    p, split = panel
+    pool = PortfolioPool(p, 50, 2, 20, (0.3, 1.0, 3.0), seed=1, shuffle=True)
+    gen = torch.Generator(device=DEV).manual_seed(0)
+    N = max(pool.sizes)
+    t, S, w = pool.sample(64, N, split.train, gen, DEV)
+    base = {tuple(sorted(zip(r, v))) for r, v in zip(pool.groups[N][0].tolist(), pool.groups[N][1].tolist())}
+    assert all(tuple(sorted(zip(r, v))) in base for r, v in zip(S.tolist(), w.tolist()))  # same portfolios as sets
+    fixed = {tuple(r) for r in pool.groups[N][0].tolist()}
+    assert any(tuple(r) not in fixed for r in S.tolist())  # but not in the fixed order

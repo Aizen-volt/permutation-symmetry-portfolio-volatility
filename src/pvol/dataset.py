@@ -160,7 +160,8 @@ class PortfolioPool:
     """Fixed set of training portfolios (experiment E2): drawn once from the training distribution (N ~ U{n_min..n_max},
     Dirichlet weights with concentration from `alphas`), grouped by size; the order of the assets never changes."""
 
-    def __init__(self, panel, n_ports, n_min, n_max, alphas, seed):
+    def __init__(self, panel, n_ports, n_min, n_max, alphas, seed, shuffle=False):
+        self.shuffle = shuffle  # experiment R1: same portfolios, but a fresh random order of the assets in every draw
         dev = panel.device
         gen = torch.Generator(device=dev).manual_seed(seed)
         rng = np.random.default_rng(seed)
@@ -180,4 +181,8 @@ class PortfolioPool:
         S, w = self.groups[N]
         idx = torch.randint(0, len(S), (B,), device=device, generator=gen)
         t = torch.randint(t_range[0], t_range[1] + 1, (B,), device=device, generator=gen)
-        return t, S[idx], w[idx]
+        S, w = S[idx], w[idx]
+        if self.shuffle:
+            order = torch.rand(B, N, device=device, generator=gen).argsort(1)
+            S, w = S.gather(1, order), w.gather(1, order)
+        return t, S, w

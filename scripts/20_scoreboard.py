@@ -19,6 +19,7 @@ ROWS = [  # (label, file, filter)
     ("H1: symmetric vs counterpart, $h=1$", "hypotheses.csv", dict(hypothesis="H1", h=1, block="in-range")),
     ("H1: symmetric vs counterpart, $h=5$", "hypotheses.csv", dict(hypothesis="H1", h=5, block="in-range")),
     ("H1: symmetric vs counterpart, $h=22$", "hypotheses.csv", dict(hypothesis="H1", h=22, block="in-range")),
+    ("H1: minimum-variance portfolios", "economic_tests.csv", dict(hypothesis="H1-minvar")),
     ("H2: symmetric vs best classical, $h=1$", "hypotheses.csv", dict(hypothesis="H2", h=1, block="in-range")),
     ("H2: symmetric vs best classical, $h=5$", "hypotheses.csv", dict(hypothesis="H2", h=5, block="in-range")),
     ("H2: symmetric vs best classical, $h=22$", "hypotheses.csv", dict(hypothesis="H2", h=22, block="in-range")),
@@ -34,7 +35,6 @@ ROWS = [  # (label, file, filter)
     ("HE2: pool of 500 portfolios", "hypotheses_extra.csv", dict(hypothesis="HE2", block="in-range, pool 500")),
     ("HE2d: larger advantage with 50 than 500", "hypotheses_extra.csv", dict(hypothesis="HE2d")),
     ("HE3: portfolios with $N>20$", "hypotheses_extra.csv", dict(hypothesis="HE3")),
-    ("H1: minimum-variance portfolios", "economic_tests.csv", dict(hypothesis="H1-minvar")),
 ]
 
 

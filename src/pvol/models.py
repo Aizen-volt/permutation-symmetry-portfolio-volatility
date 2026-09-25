@@ -146,6 +146,23 @@ class DeepSets(nn.Module):
         return inp["base"] + self.rho(z).squeeze(-1)
 
 
+class DeepSetsP(DeepSets):
+    """Deep Sets whose element features also include the weight-averaged correlation of each constituent with the others,
+    c_k = sum_l w_l p_kl, for the three correlation measures (experiment R4). The summary is permutation equivariant and
+    parameter-free, so the model stays a Deep Set; it gives the element map first-order pairwise information even when
+    the engineered portfolio summaries are removed (raw inputs)."""
+
+    def __init__(self, d=128, phi=(128,), rho=(128,), dropout=0.0):
+        super().__init__(d, phi, rho, dropout)
+        self.phi = mlp(F_NODE + F_PAIR, phi, d, dropout)
+
+    def forward(self, inp):
+        c = torch.einsum("bklf,bl->bkf", inp["pair"], inp["w"])
+        h = self.phi(torch.cat([node_inputs(inp), c], -1))
+        z = torch.cat([invariant_pools(F.gelu(h), inp), inp["g"]], -1)
+        return inp["base"] + self.rho(z).squeeze(-1)
+
+
 class PELayer(nn.Module):
     """h_i <- h_i + MLP([h_i, mean_j h_j, (1/N) sum_j gate(p_ij) * h_j]); equivariant to joint permutations."""
 
@@ -308,6 +325,7 @@ MODELS = {
     "MLP-sorted": lambda **kw: MLPConcat(sort_by_weight=True, **kw),
     "GRU": GRUConcat,
     "DeepSets": DeepSets,
+    "DeepSetsP": DeepSetsP,
     "PENet": PENet,
     "SetTransformer": SetTransformer,
     "SetGRU": SetGRU,

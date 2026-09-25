@@ -89,5 +89,6 @@ _STOCKS_BY_SECTOR = {
 }
 STOCK_UNIVERSE = {t: sec for sec, names in _STOCKS_BY_SECTOR.items() for t in names.split()}
 
-UNIVERSE = STOCK_UNIVERSE if UNIVERSE_NAME == "stocks" else ETF_UNIVERSE
+UNIVERSE = STOCK_UNIVERSE if UNIVERSE_NAME in ("stocks", "stocks54") else ETF_UNIVERSE
+SUBSAMPLE = 54 if UNIVERSE_NAME == "stocks54" else None  # experiment R5: stratified subsample of the complete stocks
 ASSET_CLASSES = sorted(set(UNIVERSE.values()))

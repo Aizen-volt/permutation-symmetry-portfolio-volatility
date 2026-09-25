@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
 from pvol.config import RESULTS  # noqa: E402
@@ -109,7 +110,8 @@ CAPTION = ("Negative DM statistics favour the symmetric network (for differences
 
 
 def levels_table():
-    conds = [("", "unlimited"), ("-P500", "pool 500"), ("-P50", "pool 50"), ("-RAW", "raw inputs"), ("-N54", "$N\\le54$")]
+    conds = [("", "unlimited"), ("-P500", "pool 500"), ("-P50", "pool 50"), ("-RAW", "raw inputs"),
+             ("-N54", "trained $N\\le54$")]
     models = ["MLP", "GRU", "DeepSets", "PENet", "SetTransformer", "SetGRU", "EQCov"]
     lev = {u: load(root, "extra_levels.csv").set_index("model") for u, root in UNIVERSES}
     L = ["\\begin{table}[t]\\centering\\footnotesize\\setlength{\\tabcolsep}{4pt}",
@@ -218,10 +220,311 @@ def cost_table():
     L += ["\\bottomrule\\end{tabular}", "\\end{table}"]
     (OUT / "compute_cost.tex").write_text("\n".join(L), encoding="utf-8")
 
+# ------------------------------------------------------------------ appendix: robustness and supplementary tables
+NETS = ["PortMLP", "MLP", "MLP-sorted", "GRU", "DeepSets", "PENet", "SetTransformer", "SetGRU", "EQCov"]
+HS = (1, 5, 22)
+
+
+def _both_universes_table(name, label, caption, value, models, fmt="{:.3f}", note_rows=None):
+    """Rows = models, columns = ETF h=1,5,22 | Stocks h=1,5,22; value(u, root, h, m) -> float or None."""
+    L = ["\\begin{table}[t]\\centering\\footnotesize\\setlength{\\tabcolsep}{5pt}",
+         f"\\caption{{{caption}}}\\label{{{label}}}",
+         "\\begin{tabular}{lrrrrrr}\\toprule",
+         " & " + " & ".join(f"\\multicolumn{{3}}{{c}}{{{u}}}" for u, _ in UNIVERSES) + "\\\\",
+         "\\cmidrule(lr){2-4}\\cmidrule(lr){5-7}",
+         "Model & " + " & ".join(f"$h={h}$" for _ in UNIVERSES for h in HS) + "\\\\ \\midrule"]
+    for m in models:
+        if m == "PortMLP":
+            L.append("\\midrule")
+        cells = []
+        for u, root in UNIVERSES:
+            for h in HS:
+                v = value(u, root, h, m)
+                cells.append("--" if v is None or v != v else fmt.format(v))
+        L.append(f"{lab(m)} & " + " & ".join(cells) + "\\\\")
+    L += ["\\bottomrule\\end{tabular}", "\\end{table}"]
+    (OUT / f"{name}.tex").write_text("\n".join(L), encoding="utf-8")
+
+
+def _losses(root, h, exp="main"):
+    f = root / exp / "tables" / f"losses_h{h}.csv"
+    return pd.read_csv(f) if f.exists() else pd.DataFrame()
+
+
+def supplementary_tables():
+    from pvol.evaluate import CLASSICAL
+
+    models = [m for m in CLASSICAL if m != "EWMA"] + NETS
+
+    def mse(u, root, h, m):
+        d = _losses(root, h)
+        r = d[(d.block == "in-range") & (d.model == m)]
+        return float(r.mse_rel_ewma.iloc[0]) if len(r) else None
+
+    _both_universes_table("mse", "tab:mse",
+                          "Out-of-sample MSE relative to EWMA, in-range portfolios, 2020--2026 (secondary loss). MSE is "
+                          "dominated by the few days with the largest realised variance.", mse, models)
+
+    def mz(u, root, h, m):
+        f = root / "main" / "tables" / f"mz_h{h}.csv"
+        if not f.exists():
+            return None
+        d = pd.read_csv(f)
+        r = d[(d.block == "in-range") & (d.model == m)]
+        return float(r.r2.iloc[0]) if len(r) else None
+
+    _both_universes_table("mz", "tab:mz",
+                          "Mincer--Zarnowitz regressions of log realised on log forecast variance, in-range portfolios, "
+                          "pooled over portfolios and origins: $R^2$.", mz, ["EWMA"] + models)
+
+    def seed_sd(u, root, h, m):
+        f = root / "main" / "tables" / f"seeds_h{h}.csv"
+        d, lo = pd.read_csv(f), _losses(root, h)
+        e = lo[(lo.block == "in-range") & (lo.model == "EWMA")].qlike.iloc[0]
+        r = d[d.model == m]
+        return float(100 * r.sd.iloc[0] / e) if len(r) else None
+
+    _both_universes_table("seeds", "tab:seeds",
+                          "Dispersion across the three training seeds: standard deviation of the QLIKE relative to EWMA of "
+                          "the individual seeds, in percentage points of EWMA (in-range portfolios). The evaluated forecast "
+                          "is the ensemble of the seeds.", seed_sd, NETS[1:], fmt="{:.2f}")
+
+
+def protocol_table():
+    """Alternative training protocol (tag -P2, ETF, h=5): ensemble accuracy and seed dispersion under both protocols."""
+    from pvol.evaluate import group_index, load_run, qlike
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("hyp", Path(__file__).with_name("15_hypotheses.py"))
+    hyp = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(hyp)
+    R = load_run("main", 5)
+    ci = hyp.cols_of(group_index(R["ports"]), "in-range")
+    e = np.nanmean(qlike(R["y"], R["F"]["EWMA"])[:, ci])
+
+    def rel(f):
+        return np.nanmean(qlike(R["y"], f)[:, ci]) / e
+
+    L = ["\\begin{table}[t]\\centering\\footnotesize\\setlength{\\tabcolsep}{5pt}",
+         "\\caption{Alternative training protocol (at least five epochs, patience 15, average of the weights of the three "
+         "best validation epochs), ETF universe, $h=5$, in-range portfolios: QLIKE relative to EWMA of the seed ensemble and "
+         "standard deviation across seeds (percentage points of EWMA). The verdicts of H1 and H2 under this protocol are "
+         "unchanged except where noted in the text.}\\label{tab:protocol}",
+         "\\begin{tabular}{lrrrr}\\toprule",
+         " & \\multicolumn{2}{c}{Main protocol} & \\multicolumn{2}{c}{Alternative protocol}\\\\ "
+         "\\cmidrule(lr){2-3}\\cmidrule(lr){4-5}",
+         "Model & QLIKE & sd & QLIKE & sd\\\\ \\midrule"]
+    for m in NETS[1:]:
+        if m + "-P2" not in R["F"]:
+            continue
+        cells = []
+        for tag in (m, m + "-P2"):
+            seeds = R["F_seed"].get(tag, {})
+            cells += [f"{rel(R['F'][tag]):.3f}", f"{100 * np.std([rel(f) for f in seeds.values()], ddof=1):.2f}"]
+        L.append(f"{lab(m)} & " + " & ".join(cells) + "\\\\")
+    L += ["\\bottomrule\\end{tabular}", "\\end{table}"]
+    (OUT / "protocol.tex").write_text("\n".join(L), encoding="utf-8")
+
+
+def epochs_table():
+    """Best validation epoch per (network, seed, test year), main design, h=5: median and share of runs whose best epoch
+    is one of the first two."""
+    import json
+
+    rows = {}
+    for u, root in UNIVERSES:
+        for f in (root / "main" / "h5" / "info").glob("*__s*__y*.json"):
+            d = json.loads(f.read_text())
+            if d.get("tag", d["model"]) not in NETS[1:] or not d.get("history"):
+                continue
+            best = 1 + int(np.argmin([r[2] for r in d["history"]]))
+            rows.setdefault((u, d["tag"]), []).append(best)
+    L = ["\\begin{table}[t]\\centering\\footnotesize\\setlength{\\tabcolsep}{5pt}",
+         "\\caption{Epoch with the best validation loss (the weights kept by early stopping), main design, $h=5$, over "
+         "seeds and test years (21 runs per cell): median epoch and share of runs in which it is the first or the second "
+         "epoch, i.e.\\ in which the kept network has been trained for at most 250 optimisation steps.}\\label{tab:epochs}",
+         "\\begin{tabular}{lrrrr}\\toprule",
+         " & " + " & ".join(f"\\multicolumn{{2}}{{c}}{{{u}}}" for u, _ in UNIVERSES) + "\\\\ "
+         "\\cmidrule(lr){2-3}\\cmidrule(lr){4-5}",
+         "Model & " + " & ".join("median & $\\le2$" for _ in UNIVERSES) + "\\\\ \\midrule"]
+    for m in NETS[1:]:
+        cells = []
+        for u, _ in UNIVERSES:
+            b = rows.get((u, m), [])
+            cells += [f"{np.median(b):.0f}", f"{100 * np.mean(np.array(b) <= 2):.0f}\\%"] if b else ["--", "--"]
+        L.append(f"{lab(m)} & " + " & ".join(cells) + "\\\\")
+    L += ["\\bottomrule\\end{tabular}", "\\end{table}"]
+    (OUT / "epochs.tex").write_text("\n".join(L), encoding="utf-8")
+
+
+def heldout_table():
+    """Unseen assets (H3c): QLIKE relative to EWMA for portfolios composed only of assets excluded from training."""
+    from pvol.evaluate import CLASSICAL
+
+    cols = [("ETF", BASE, h) for h in HS] + [("Stocks", Path(str(BASE) + "_stocks"), 5)]
+    vals = {}
+    for u, root, h in cols:
+        d = _losses(root, h, "heldout")
+        if d.empty:
+            continue
+        d = d[d.block == "unseen-assets"].set_index("model").qlike_rel_ewma
+        vals[(u, h)] = d
+    models = [m for m in CLASSICAL + NETS if any(m in v.index for v in vals.values())]
+    L = ["\\begin{table}[t]\\centering\\footnotesize\\setlength{\\tabcolsep}{5pt}",
+         "\\caption{Unseen assets (H3c): QLIKE relative to EWMA for portfolios of 5 and 10 assets composed only of the "
+         "assets excluded from training (12 funds, 28 stocks); the stock universe was run at $h=5$ only. Bold: best in the "
+         "column.}\\label{tab:heldout}",
+         "\\begin{tabular}{lrrrr}\\toprule",
+         " & \\multicolumn{3}{c}{ETF} & Stocks\\\\ \\cmidrule(lr){2-4}\\cmidrule(lr){5-5}",
+         "Model & $h=1$ & $h=5$ & $h=22$ & $h=5$\\\\ \\midrule"]
+    for m in models:
+        if m == "PortMLP":
+            L.append("\\midrule")
+        cells = []
+        for u, _, h in cols:
+            v = vals.get((u, h))
+            if v is None or m not in v.index:
+                cells.append("--")
+                continue
+            c = f"{v[m]:.3f}"
+            cells.append(f"\\textbf{{{c}}}" if np.isclose(v[m], v.min()) else c)
+        L.append(f"{lab(m)} & " + " & ".join(cells) + "\\\\")
+    L += ["\\bottomrule\\end{tabular}", "\\end{table}"]
+    (OUT / "heldout.tex").write_text("\n".join(L), encoding="utf-8")
+
+
+def structured_table():
+    from pvol.portfolios import STRUCTURED
+
+    names = {"60/40": "60/40", "AllWeather": "All-weather type", "GlobalMulti": "Global multi-asset"}
+    L = ["\\begin{table}[t]\\centering\\footnotesize\\setlength{\\tabcolsep}{5pt}",
+         "\\caption{Structured allocations of the ETF universe (constant weights, rebalanced daily). The long--short "
+         "portfolios have ten constituents with weights $z_k/\\sum_l|z_l|$, $z_k$ independent standard normal, i.e.\\ unit "
+         "gross exposure and a random net exposure with mean zero.}\\label{tab:structured}",
+         "\\begin{tabular}{lp{11cm}}\\toprule", "Allocation & Weights\\\\ \\midrule"]
+    for k, spec in STRUCTURED.items():
+        L.append(f"{names.get(k, k)} & " + ", ".join(f"{t} {100 * w:g}\\%" for t, w in spec.items()) + "\\\\")
+    L += ["\\bottomrule\\end{tabular}", "\\end{table}"]
+    (OUT / "structured.tex").write_text("\n".join(L), encoding="utf-8")
+
+
+# ------------------------------------------------------------------ third series (R1-R5)
+RLAB = {"-P50s": " (pool 50, shuffled)", "-P500s": " (pool 500, shuffled)", "-P50": " (pool 50)", "-P500": " (pool 500)",
+        "-RAW": " (raw)", "-TTA": " (TTA)"}
+
+
+def rlab(m):
+    for suf in ("-P500s", "-P50s", "-P500", "-P50", "-RAW", "-TTA"):
+        if m.endswith(suf):
+            b = m[: -len(suf)]
+            return ("Deep Sets + pairs" if b == "DeepSetsP" else lab(b)) + RLAB[suf]
+    return "Deep Sets + pairs" if m == "DeepSetsP" else lab(m)
+
+
+def review_tables():
+    import pandas as pd
+
+    fams = [("R1a: symmetric (fixed pool of 50) vs counterpart (same pool, shuffled)", dict(hypothesis="R1a", block="in-range, pool 50, shuffled counterpart")),
+            ("R1a: symmetric (fixed pool of 500) vs counterpart (same pool, shuffled)", dict(hypothesis="R1a", block="in-range, pool 500, shuffled counterpart")),
+            ("R1b: shuffled vs fixed order, same pool", dict(hypothesis="R1b")),
+            ("R2: symmetric vs MLP-sorted, raw inputs", dict(hypothesis="R2", block="in-range, raw inputs")),
+            ("R2: symmetric vs MLP-sorted, pool of 50", dict(hypothesis="R2", block="in-range, pool 50")),
+            ("R2: symmetric vs MLP-sorted, pool of 500", dict(hypothesis="R2", block="in-range, pool 500")),
+            ("R3: symmetric vs counterpart with 8-ordering averaging, $h=1$", dict(hypothesis="R3", h=1)),
+            ("R3: symmetric vs counterpart with 8-ordering averaging, $h=5$", dict(hypothesis="R3", h=5)),
+            ("R4: Deep Sets with pair summaries", dict(hypothesis="R4")),
+            ("R4 (auxiliary)", dict(hypothesis="R4 (aux)"))]
+    d = {u: load(root, "hypotheses_review.csv") for u, root in UNIVERSES}
+    L = ["\\begin{table}[p]\\centering\\footnotesize\\setlength{\\tabcolsep}{4pt}",
+         "\\caption{Third series of experiments ($h=5$ unless stated, in-range portfolios): Diebold--Mariano statistics "
+         "and Holm-adjusted $p$-values. Negative statistics favour the first model. Bold: first model significantly more "
+         "accurate; $^{-}$: significantly less accurate.}\\label{tab:hyp_review}",
+         "\\begin{tabular}{lrrrr}\\toprule",
+         " & \\multicolumn{2}{c}{ETF} & \\multicolumn{2}{c}{Stocks}\\\\ \\cmidrule(lr){2-3}\\cmidrule(lr){4-5}",
+         "Comparison & DM & $p_{\\text{Holm}}$ & DM & $p_{\\text{Holm}}$\\\\ \\midrule"]
+    first = True
+    for title, flt in fams:
+        cells = {}
+        for u, _ in UNIVERSES:
+            for _, r in select(d[u], flt).iterrows():
+                cells.setdefault(f"{rlab(r.model)} vs {rlab(r.benchmark)}", {})[u] = (f"${r.dm:.2f}$", fmt_p(r))
+        if not cells:
+            continue
+        if not first:
+            L.append("\\addlinespace")
+        first = False
+        L.append(f"\\multicolumn{{5}}{{l}}{{\\emph{{{title}}}}}\\\\")
+        for k, v in cells.items():
+            L.append(f"\\quad {k} & " + " & ".join(" & ".join(v.get(u, ("--", "--"))) for u, _ in UNIVERSES) + "\\\\")
+    L += ["\\bottomrule\\end{tabular}", "\\end{table}"]
+    (OUT / "hyp_review.tex").write_text("\n".join(L), encoding="utf-8")
+
+    # levels: what each cheap fix does to the unconstrained network
+    lev = {u: load(root, "review_levels.csv") for u, root in UNIVERSES}
+    s54 = load(Path(str(BASE) + "_stocks54"), "review_levels.csv")
+    rows = [("A. Fixed pool of 50 portfolios", None),
+            ("MLP, fixed order", "MLP-P50"), ("MLP, shuffled order", "MLP-P50s"), ("MLP-sorted", "MLP-sorted-P50"),
+            ("PE-Net", "PENet-P50"), ("Set Transformer", "SetTransformer-P50"),
+            ("B. Raw inputs", None),
+            ("MLP", "MLP-RAW"), ("MLP-sorted", "MLP-sorted-RAW"), ("Deep Sets", "DeepSets-RAW"),
+            ("Deep Sets + pairs", "DeepSetsP-RAW"), ("PE-Net", "PENet-RAW"),
+            ("C. Main design", None),
+            ("MLP", "MLP"), ("MLP, 8-ordering averaging", "MLP-TTA"), ("MLP-sorted", "MLP-sorted"),
+            ("Deep Sets + pairs", "DeepSetsP"), ("PE-Net", "PENet")]
+
+    def val(frame, h, m):
+        x = frame[(frame.h == h) & (frame.model == m)] if len(frame) else frame
+        return f"{x.qlike_rel_ewma.iloc[0]:.3f}" if len(x) else "--"
+
+    L = ["\\begin{table}[t]\\centering\\footnotesize\\setlength{\\tabcolsep}{5pt}",
+         "\\caption{Third series: QLIKE relative to EWMA (in-range portfolios, seed ensembles) of the unconstrained MLP with "
+         "the cheap alternatives to architectural symmetry---a new random order in every draw from the pool, "
+         "canonicalisation by sorting, averaging over 8 orderings at prediction time---and of symmetric networks for "
+         "reference. Deep Sets + pairs adds the weight-averaged correlation of each constituent with the others to its "
+         "element features.}\\label{tab:review_levels}",
+         "\\begin{tabular}{lrr}\\toprule",
+         "Network ($h=5$) & ETF & Stocks\\\\"]
+    for name, tag in rows:
+        if tag is None:
+            L += ["\\midrule", f"\\multicolumn{{3}}{{l}}{{\\emph{{{name}}}}}\\\\"]
+            continue
+        cells = [val(lev[u], 5, tag) for u, _ in UNIVERSES]
+        L.append(f"\\quad {name} & " + " & ".join(cells) + "\\\\")
+    L += ["\\bottomrule\\end{tabular}", "\\end{table}"]
+    (OUT / "review_levels.tex").write_text("\n".join(L), encoding="utf-8")
+
+    # R5: the 54-stock subsample
+    r5 = load(Path(str(BASE) + "_stocks54"), "hypotheses_review.csv")
+    L = ["\\begin{table}[t]\\centering\\footnotesize\\setlength{\\tabcolsep}{5pt}",
+         "\\caption{Subsample of 54 of the 122 stocks (stratified by sector): H1 in the in-range block. QLIKE relative to "
+         "EWMA of the symmetric network and of its counterpart, DM statistic and Holm-adjusted $p$-value (bold: symmetric "
+         "network significantly more accurate).}\\label{tab:stocks54}",
+         "\\begin{tabular}{lrrrrrrrr}\\toprule",
+         " & \\multicolumn{4}{c}{$h=1$} & \\multicolumn{4}{c}{$h=5$}\\\\ \\cmidrule(lr){2-5}\\cmidrule(lr){6-9}",
+         "Pair & sym. & count. & DM & $p_{\\text{Holm}}$ & sym. & count. & DM & $p_{\\text{Holm}}$\\\\ \\midrule"]
+    for a in ["DeepSets", "PENet", "SetTransformer", "SetGRU", "EQCov"]:
+        cells = []
+        for h in (1, 5):
+            r = r5[(r5.h == h) & (r5.model == a)]
+            if not len(r):
+                cells += ["--"] * 4
+                continue
+            r = r.iloc[0]
+            cells += [val(s54, h, a), val(s54, h, r.benchmark), f"${r.dm:.2f}$", fmt_p(r)]
+        L.append(f"{lab(a)} vs {'GRU' if a == 'SetGRU' else 'MLP'} & " + " & ".join(cells) + "\\\\")
+    L += ["\\bottomrule\\end{tabular}", "\\end{table}"]
+    (OUT / "stocks54.tex").write_text("\n".join(L), encoding="utf-8")
+
 
 if __name__ == "__main__":
     economic_table()
     cost_table()
+    supplementary_tables()
+    protocol_table()
+    epochs_table()
+    heldout_table()
+    structured_table()
+    review_tables()
     H = "hypotheses.csv"
     hyp_table("hyp_accuracy",
               "Tests behind the verdicts of H1 (symmetric network vs its counterpart) and H2 (symmetric network vs the "
@@ -239,7 +542,9 @@ if __name__ == "__main__":
                ("H4, $K=4$ years", H, dict(hypothesis="H4", block="in-range, K=4 minus full"), "pair"),
                ("H4, $K=2$ years", H, dict(hypothesis="H4", block="in-range, K=2 minus full"), "pair"),
                ("H1, minimum variance", "economic_tests.csv", dict(hypothesis="H1-minvar"), "pair"),
-               ("H2, minimum variance", "economic_tests.csv", dict(hypothesis="H2-minvar"), "benchmark")])
+               ("H2, minimum variance", "economic_tests.csv", dict(hypothesis="H2-minvar"), "benchmark"),
+               ("H1, volatility targeting", "economic_tests.csv", dict(hypothesis="H1-voltarget", h=5.0), "pair"),
+               ("H2, volatility targeting", "economic_tests.csv", dict(hypothesis="H2-voltarget", h=5.0), "benchmark")])
     X = "hypotheses_extra.csv"
     hyp_table("hyp_extra",
               "Tests behind the verdicts of the second series ($h=5$, in-range portfolios unless stated). HE1d and HE2d "

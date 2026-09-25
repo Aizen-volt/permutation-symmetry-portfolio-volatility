@@ -30,6 +30,7 @@ class TrainCfg:
     raw_inputs: bool = False  # experiment E1: no engineered portfolio-level summaries
     portfolio_pool: int = 0  # experiment E2: train (and validate) on a fixed pool of this many portfolios; 0 = fresh draws
     pool_seed: int = 4242  # the same pool for every model and seed
+    pool_shuffle: bool = False  # experiment R1: list the pool's assets in a fresh random order in every draw
 
 
 def qlike(s, y):
@@ -79,7 +80,8 @@ def train_model(name, panel, split, h, seed, cfg=None, hp=None, verbose=False):
     gru_len = cfg.gru_len if name in SEQ_MODELS else 0
     gen = torch.Generator(device=panel.device).manual_seed(seed)
     panel.fit_scalers(split.train, torch.Generator(device=panel.device).manual_seed(0))
-    pool = (PortfolioPool(panel, cfg.portfolio_pool, cfg.n_min, cfg.n_max, cfg.alphas, cfg.pool_seed)
+    pool = (PortfolioPool(panel, cfg.portfolio_pool, cfg.n_min, cfg.n_max, cfg.alphas, cfg.pool_seed,
+                          shuffle=cfg.pool_shuffle)
             if cfg.portfolio_pool else None)
     val = fixed_batches(panel, split.val, cfg.val_batches, cfg, seed=987 + h, pool=pool)
     opt = torch.optim.AdamW(model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
@@ -132,8 +134,10 @@ def train_model(name, panel, split, h, seed, cfg=None, hp=None, verbose=False):
 
 
 @torch.no_grad()
-def predict_portfolios(model, name, panel, portfolios, t_idx, gru_len=22, chunk=8192):
-    """Forecasts s = log variance for every (origin, portfolio): array (len(t_idx), len(portfolios)); NaN if unsupported."""
+def predict_portfolios(model, name, panel, portfolios, t_idx, gru_len=22, chunk=8192, tta_k=0):
+    """Forecasts s = log variance for every (origin, portfolio): array (len(t_idx), len(portfolios)); NaN if unsupported.
+
+    tta_k > 0 (experiment R3): average of the log-variance forecasts over tta_k random orderings of the constituents."""
     model.eval()
     dev = panel.device
     out = np.full((len(t_idx), len(portfolios)), np.nan, dtype=np.float32)
@@ -153,9 +157,17 @@ def predict_portfolios(model, name, panel, portfolios, t_idx, gru_len=22, chunk=
         SS, WW = S.repeat(len(t_idx), 1), W.repeat(len(t_idx), 1)
         step = max(1, chunk * 100 // (N * N)) if N > 10 else chunk  # pairwise tensors grow with N^2
         preds = []
+        gen = torch.Generator(device=dev).manual_seed(12345)
         for a in range(0, len(tt), step):
-            inp, _ = panel.batch(tt[a : a + step], SS[a : a + step], WW[a : a + step], gru_len=gru_len if name in SEQ_MODELS else 0, raw=raw)
-            preds.append(model(inp).float())
+            s_, w_ = SS[a : a + step], WW[a : a + step]
+            orders = [None] if not tta_k else [torch.rand(s_.shape, device=dev, generator=gen).argsort(1)
+                                                for _ in range(tta_k)]
+            acc = 0.0
+            for o in orders:
+                s_o, w_o = (s_, w_) if o is None else (s_.gather(1, o), w_.gather(1, o))
+                inp, _ = panel.batch(tt[a : a + step], s_o, w_o, gru_len=gru_len if name in SEQ_MODELS else 0, raw=raw)
+                acc = acc + model(inp).float()
+            preds.append(acc / len(orders))
         out[:, cols] = torch.cat(preds).view(len(t_idx), P).cpu().numpy()
     return out
 

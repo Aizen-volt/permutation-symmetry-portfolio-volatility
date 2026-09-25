@@ -16,7 +16,20 @@ from .config import (
     UNIVERSE_NAME,
     VAR_FLOOR,
 )
-from .universe import ASSET_CLASSES, UNIVERSE
+from .universe import ASSET_CLASSES, SUBSAMPLE, UNIVERSE
+
+
+def stratified_subsample(tickers, n, seed=0):
+    rng = np.random.default_rng(seed)
+    by = {}
+    for t in tickers:
+        by.setdefault(UNIVERSE[t], []).append(t)
+    quota = {c: n * len(v) / len(tickers) for c, v in by.items()}
+    k = {c: int(q) for c, q in quota.items()}
+    for c in sorted(quota, key=lambda c: quota[c] - k[c], reverse=True)[: n - sum(k.values())]:
+        k[c] += 1
+    keep = {t for c, v in by.items() for t in rng.choice(sorted(v), k[c], replace=False)}
+    return [t for t in tickers if t in keep]
 
 
 def load_prices():
@@ -28,6 +41,9 @@ def load_prices():
         if dropped:
             print(f"dropping {len(dropped)} names without complete history: {' '.join(dropped)}")
         tickers = complete
+        if SUBSAMPLE:  # stratified by sector, proportional allocation (largest remainders), fixed seed
+            tickers = stratified_subsample(tickers, SUBSAMPLE)
+            print(f"subsample of {len(tickers)} stocks: {' '.join(tickers)}")
     fields = {k: df[k][tickers].astype("float64") for k in ("Open", "High", "Low", "Close")}
     assert not any(v.isna().any().any() for v in fields.values()), "missing prices in common sample"
     return fields, tickers
