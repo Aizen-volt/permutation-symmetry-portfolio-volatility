@@ -6,7 +6,9 @@ close to the target in every month. Metrics (averaged over the portfolios of a b
   ratio   realised volatility of the managed series over the whole test period / target (ideal 1)
   rmse    root mean squared log deviation of monthly (21-day) realised volatility from the target (ideal 0)
   tail    share of months with realised volatility above 1.5 x target
-The target cancels out of all three metrics, so it is set to 1.
+  low     share of months with realised volatility below target / 1.5
+  bias    mean log deviation of monthly realised volatility from the target (> 0: forecasts too low)
+The target cancels out of all metrics, so it is set to 1.
 """
 import sys
 from pathlib import Path
@@ -41,7 +43,9 @@ def metrics(m, month=21):
     mv = np.sqrt((m[:n].reshape(-1, month, m.shape[1]) ** 2).mean(1) * 252)  # (months, P)
     rmse = np.sqrt(np.mean(np.log(mv) ** 2, axis=0))
     tail = np.mean(mv > 1.5, axis=0)
-    return ratio, rmse, tail
+    low = np.mean(mv < 1 / 1.5, axis=0)
+    bias = np.mean(np.log(mv), axis=0)
+    return ratio, rmse, tail, low, bias
 
 
 if __name__ == "__main__":
@@ -63,9 +67,10 @@ if __name__ == "__main__":
                 if not np.isfinite(f[:, cols]).all():
                     continue
                 mr = managed_returns(r[:, cols], f[:, cols], origins, h)
-                ratio, rmse, tail = metrics(mr)
+                ratio, rmse, tail, low, bias = metrics(mr)
                 rows.append(dict(h=h, block=b, model=m, ratio=ratio.mean(), abs_ratio_dev=np.abs(ratio - 1).mean(),
-                                 rmse_log_monthly=rmse.mean(), tail_share=tail.mean()))
+                                 rmse_log_monthly=rmse.mean(), tail_share=tail.mean(),
+                                 low_share=low.mean(), log_bias=bias.mean()))
         print(f"h={h} done", flush=True)
     df = pd.DataFrame(rows)
     out = RESULTS / exp / "tables" / "vol_targeting.csv"

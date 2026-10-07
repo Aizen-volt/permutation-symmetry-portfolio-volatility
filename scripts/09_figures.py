@@ -1,6 +1,6 @@
 """Figures for the paper (vector PDF, drawn at the final printed width so that fonts are not scaled).
 
-Style: text set by LaTeX (usetex: Computer Modern like the manuscript, Type 1 fonts with correct text encoding); the
+Style: text set by LaTeX (usetex: STIX like the manuscript in the Elsevier CAS template, Type 1 fonts with correct text encoding); the
 same networks in the same Okabe-Ito colours in every figure (markers or line styles as secondary encoding); the best
 classical model of each panel as a black dashed line, named in the panel title; one legend below the figure; ETF and stock
 universe as the two rows of one figure.
@@ -34,7 +34,7 @@ PREVIEW.mkdir(parents=True, exist_ok=True)
 BASE = Path(str(RESULTS).replace("_stocks", ""))
 UNIVERSES = [("ETF", BASE), ("Stock", Path(str(BASE) + "_stocks"))]
 
-TEXTWIDTH = 6.3  # inches (16 cm, the text width of the manuscript)
+TEXTWIDTH = 6.84  # inches (494.5 pt, the text width of the cas-dc template)
 HIGHLIGHT = ["MLP", "PENet", "SetTransformer", "EQCov"]
 NETS = ["MLP", "MLP-sorted", "GRU", "DeepSets", "PENet", "SetTransformer", "SetGRU", "EQCov"]  # read the constituents
 COLOR = {"MLP": "#0072B2", "PENet": "#D55E00", "SetTransformer": "#009E73", "EQCov": "#CC79A7", "DeepSets": "#E69F00"}
@@ -45,7 +45,7 @@ LABEL = {"SetTransformer": "Set Transformer", "DeepSets": "Deep Sets", "EQCov": 
          "SetGRU": "Set-GRU", "HARX": "HAR-X", "GJR": "GJR-GARCH", "DCCNL": "DCC-NL"}
 
 plt.rcParams.update({
-    "text.usetex": True, "font.family": "serif", "font.size": 10, "axes.titlesize": 10, "axes.labelsize": 10,
+    "text.usetex": True, "text.latex.preamble": r"\usepackage{stix}", "font.family": "serif", "font.size": 10, "axes.titlesize": 10, "axes.labelsize": 10,
     "xtick.labelsize": 9, "ytick.labelsize": 9, "legend.fontsize": 9.5, "axes.edgecolor": AXIS, "axes.labelcolor": INK, "xtick.color": INK2,
     "ytick.color": INK2, "axes.grid": True, "grid.color": GRID, "grid.linewidth": 0.6, "axes.spines.top": False,
     "axes.spines.right": False, "axes.linewidth": 0.7, "lines.linewidth": 1.6, "lines.markersize": 5,
@@ -233,7 +233,7 @@ def fig_cumdiff():
         ax.set_title(f"$h={h}$")
         ax.xaxis.set_major_locator(mdates.YearLocator(2))
         ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
-    axes[0].set_ylabel("cumulative QLIKE difference")
+    axes[0].set_ylabel("cumulative QLIKE difference\n(absolute QLIKE)")
     handles = [plt.Line2D([], [], color=UCOL["ETF"], lw=1.4), plt.Line2D([], [], color=UCOL["Stock"], lw=1.4, ls=(0, (5, 1.5)))]
     fig.tight_layout(rect=(0, 0.09, 1, 1), w_pad=1.5)
     fig.legend(handles, ["ETF universe", "Stock universe"], loc="lower center", ncol=2, bbox_to_anchor=(0.5, -0.01))

@@ -207,12 +207,12 @@ def var_table_both(exp="main"):
     (OUT / "var_main.tex").write_text("\n".join(L), encoding="utf-8")
 
 
-def universe_table(root, name, caption, label):
+def universe_table(root, name, caption, label, place="t", size="small"):
     f = root / "descriptives" / "universe_stats.csv"
     if not f.exists():
         return
     d = pd.read_csv(f)
-    L = ["\\begin{table}[t]\\centering\\small", f"\\caption{{{caption}}}\\label{{{label}}}",
+    L = [f"\\begin{{table}}[{place}]\\centering\\{size}", f"\\caption{{{caption}}}\\label{{{label}}}",
          "\\begin{tabular}{p{2.8cm}rp{5.4cm}rrrr}\\toprule",
          "Class & $n$ & Tickers & Ret. & Vol. & $\\overline{\\text{corr}}_{\\text{in}}$ & "
          "$\\overline{\\text{corr}}_{\\text{out}}$\\\\ \\midrule"]
@@ -225,7 +225,7 @@ def universe_table(root, name, caption, label):
 
 if __name__ == "__main__":
     universe_table(RESULTS, "universe",
-                   "Investment universe: 54 US-listed ETFs, daily data 19 December 2007 -- 18 September 2026. Annualised arithmetic "
+                   "Investment universe: 54 US-listed ETFs, daily data from 19 December 2007 to 18 September 2026. Annualised arithmetic "
                    "mean return and volatility are averages over the funds in each class; "
                    "$\\overline{\\text{corr}}_{\\text{in}}$ ($\\overline{\\text{corr}}_{\\text{out}}$) is the average "
                    "pairwise correlation of daily returns within the class (with funds of other classes).", "tab:universe")
@@ -235,7 +235,7 @@ if __name__ == "__main__":
                    "which explains the high average returns (survivorship bias). Sectors follow GICS with one inconsistency: ADP is "
                    "labelled Information Technology, its sector before the March 2023 GICS revision (now Industrials), "
                    "while Mastercard follows the revised classification (Financials); the sector label enters the "
-                   "networks only as an input dummy.", "tab:universe_stocks")
+                   "networks only as an input dummy.", "tab:universe_stocks", place="!htbp", size="footnotesize")
     if UNIVERSE_NAME == "etf":  # the combined tables read both universes
         main_table()
         blocks_table()
