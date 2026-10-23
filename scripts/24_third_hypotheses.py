@@ -1,4 +1,4 @@
-"""Tests of the third series (R1-R5), decision rules as registered in docs/JOURNAL.md section 4b.
+"""Tests of the third series (R1-R5), decision rules fixed before the series was run.
 
 QLIKE, HLN-corrected Diebold-Mariano test on daily cross-sectional average loss differentials, 5%, Holm within family;
 in-range portfolios. Writes results*/main/tables/hypotheses_review.csv and review_levels.csv for the current universe

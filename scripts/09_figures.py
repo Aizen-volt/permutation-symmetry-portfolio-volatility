@@ -108,7 +108,7 @@ def bottom_legend(fig, axes, ncol=5):
 
 
 
-# ------------------------------------------------------------------------------------------------ figures
+# figures
 # One message per figure, few large panels, text at 9-10 pt at the printed size.
 UCOL = {"ETF": "#0072B2", "Stock": "#D55E00"}
 

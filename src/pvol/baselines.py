@@ -21,7 +21,7 @@ def portfolio_returns(R, p):
     return R[:, p["ids"]] @ np.asarray(p["weights"], dtype=np.float64)
 
 
-# ------------------------------------------------------------------ simple filters
+# simple filters
 def hist_forecast(rp, t_idx, window=22):
     c = np.concatenate([[0.0], np.cumsum(rp**2)])
     return (c[t_idx + 1] - c[t_idx + 1 - window]) / window
@@ -35,7 +35,7 @@ def ewma_forecast(S_ewma, p, t_idx):
     return np.einsum("i,tij,j->t", w, Ssub, w)
 
 
-# ------------------------------------------------------------------ HAR (Corsi, 2009) on the portfolio series
+# HAR (Corsi, 2009) on the portfolio series
 def har_design(rp, t_idx):
     c = np.concatenate([[0.0], np.cumsum(rp**2)])
     cols = [(c[t_idx + 1] - c[t_idx + 1 - k]) / k for k in (1, 5, 22)]
@@ -51,7 +51,7 @@ def har_forecast(rp, fit_idx, t_idx, h):
     return np.where(f > VAR_FLOOR, f, fallback), beta
 
 
-# ------------------------------------------------------------------ HAR-X: HAR + range-based portfolio regressors
+# HAR-X: HAR + range-based portfolio regressors
 def range_portfolio_var(X, P, p, t_idx, feat_idx):
     """w' D_k R_ewma D_k w, with D_k = diag(sqrt(mean range-based variance over k days)); one column per k."""
     ids, w = p["ids"], np.asarray(p["weights"])
@@ -74,7 +74,7 @@ def harx_forecast(rp, X, P, p, fit_idx, t_idx, h, feat_idx):
     return np.where(f > VAR_FLOOR, f, hist_forecast(rp, t_idx)), beta
 
 
-# ------------------------------------------------------------------ GARCH / GJR-GARCH(1,1)
+# GARCH / GJR-GARCH(1,1)
 def fit_garch(r, o=0):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -126,7 +126,7 @@ def run_garch_many(R, portfolios, fit_end, t_idx, h, o=0, n_jobs=-1):
     return np.column_stack(cols)
 
 
-# ------------------------------------------------------------------ DCC-GARCH (Engle, 2002)
+# DCC-GARCH (Engle, 2002)
 class DCC:
     """Two-step DCC(1,1)-GARCH(1,1) with correlation targeting, estimated on the whole universe."""
 
@@ -217,7 +217,7 @@ def dcc_portfolio_forecasts(dcc, portfolios, t_idx, h):
     return out
 
 
-# ------------------------------------------------------------------ shrinkage estimators
+# shrinkage estimators
 def analytical_shrinkage(X, demean=True):
     """Analytical nonlinear shrinkage of the covariance matrix (Ledoit and Wolf, 2020, Annals of Statistics),
     for p <= n. X: (n, p) observations."""

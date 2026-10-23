@@ -62,7 +62,7 @@ class PanelGPU:
         self.asset_ids = torch.arange(self.M, device=device) if asset_ids is None else f(np.asarray(asset_ids))
         self.x_mu = None
 
-    # ---------- standardisation (fit on training origins only) ----------
+    # standardisation (fit on training origins only)
     def fit_scalers(self, train_range, gen, n=20000):
         a, b = train_range
         X = self.X_raw[a : b + 1][:, self.asset_ids]
@@ -74,7 +74,7 @@ class PanelGPU:
         self.g_sd = g.std(0).clamp_min(1e-6)
         self.raw_base = g[:, 2].mean()  # constant anchor (log of a typical 22-day variance) for raw-input networks
 
-    # ---------- sampling ----------
+    # sampling
     def sample(self, B, N, t_range, gen, alpha=1.0, scheme="long_only", pool=None):
         pool = self.asset_ids if pool is None else pool
         t = torch.randint(t_range[0], t_range[1] + 1, (B,), device=self.device, generator=gen)
@@ -83,7 +83,7 @@ class PanelGPU:
         w = sample_weights(B, N, gen, self.device, alpha, scheme)
         return t, S, w
 
-    # ---------- features ----------
+    # features
     def _portfolio_history_feats(self, t, S, w):
         L = MAX_LOOKBACK
         lags = torch.arange(L - 1, -1, -1, device=self.device)  # oldest ... newest

@@ -222,7 +222,7 @@ def cost_table():
     L += ["\\bottomrule\\end{tabular}", "\\end{table}"]
     (OUT / "compute_cost.tex").write_text("\n".join(L), encoding="utf-8")
 
-# ------------------------------------------------------------------ appendix: robustness and supplementary tables
+# appendix: robustness and supplementary tables
 NETS = ["PortMLP", "MLP", "MLP-sorted", "GRU", "DeepSets", "PENet", "SetTransformer", "SetGRU", "EQCov"]
 HS = (1, 5, 22)
 
@@ -444,7 +444,7 @@ def structured_table():
     (OUT / "structured.tex").write_text("\n".join(L), encoding="utf-8")
 
 
-# ------------------------------------------------------------------ third series (R1-R5)
+# third series (R1-R5)
 RLAB = {"-P50s": " (pool 50, shuffled)", "-P500s": " (pool 500, shuffled)", "-P50": " (pool 50)", "-P500": " (pool 500)",
         "-RAW": " (raw)", "-TTA": " (TTA)"}
 
@@ -457,7 +457,7 @@ def rlab(m):
     return "Deep Sets + pairs" if m == "DeepSetsP" else lab(m)
 
 
-def review_tables():
+def third_series_tables():
     import pandas as pd
 
     fams = [("R1a: symmetric (fixed pool of 50) vs counterpart (same pool, shuffled)", dict(hypothesis="R1a", block="in-range, pool 50, shuffled counterpart")),
@@ -575,7 +575,7 @@ if __name__ == "__main__":
     epochs_table()
     heldout_table()
     structured_table()
-    review_tables()
+    third_series_tables()
     H = "hypotheses.csv"
     hyp_table("hyp_accuracy",
               "Tests behind the verdicts of H1 (symmetric network vs its counterpart) and H2 (symmetric network vs the "

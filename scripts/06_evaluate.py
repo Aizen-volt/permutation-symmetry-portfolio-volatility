@@ -44,7 +44,7 @@ def evaluate_h(exp, h, seeds, out):
     rows = []
     # block sets present in this universe (e.g. no structured allocations for the stock universe)
     group_sets = {b: gs for b, gs in GROUP_SETS[exp].items() if any(g in gidx for g in gs)}
-    # ---- losses per individual group and per group set
+    # losses per individual group and per group set
     blocks = {**{g: [g] for g in gidx}, **group_sets}
     for b, groups in blocks.items():
         cols = np.concatenate([gidx[g] for g in groups if g in gidx])
@@ -60,7 +60,7 @@ def evaluate_h(exp, h, seeds, out):
     tab["mse_rel_ewma"] = tab.mse / tab.block.map(ref.mse)
     tab.to_csv(out / f"losses_h{h}.csv", index=False)
 
-    # ---- DM tests on daily cross-sectional average QLIKE, per group set
+    # DM tests on daily cross-sectional average QLIKE, per group set
     dm_rows, pf_rows = [], []
     for b, groups in group_sets.items():
         cols = np.concatenate([gidx[g] for g in groups if g in gidx])
@@ -72,7 +72,7 @@ def evaluate_h(exp, h, seeds, out):
                 stat, p = dm_test(daily[a] - daily[c], h)
                 dm_rows.append(dict(h=h, block=b, model=a, benchmark=c, mean_diff=np.mean(daily[a] - daily[c]),
                                     dm_stat=stat, p_value=p))
-        # ---- portfolio-level comparisons for the matched pairs: win rate and share of significant DM tests
+        # portfolio-level comparisons for the matched pairs: win rate and share of significant DM tests
         for a, c in PAIRS:
             if a in daily and c in daily:
                 D = Lq[a][:, cols] - Lq[c][:, cols]
@@ -81,7 +81,7 @@ def evaluate_h(exp, h, seeds, out):
                                     win_rate=np.mean(D.mean(0) < 0),
                                     share_sig_better=np.mean((res[:, 1] < 0.05) & (res[:, 0] < 0)),
                                     share_sig_worse=np.mean((res[:, 1] < 0.05) & (res[:, 0] > 0))))
-        # ---- Model Confidence Set
+        # Model Confidence Set
         ldf = pd.DataFrame(daily)
         pv = mcs(ldf, size=0.10)
         for m, v in pv.items():
@@ -89,7 +89,7 @@ def evaluate_h(exp, h, seeds, out):
     pd.DataFrame(dm_rows).to_csv(out / f"tests_h{h}.csv", index=False)
     pd.DataFrame(pf_rows).to_csv(out / f"portfolio_tests_h{h}.csv", index=False)
 
-    # ---- Mincer-Zarnowitz (log scale, in-range groups / first group set)
+    # Mincer-Zarnowitz (log scale, in-range groups / first group set)
     b0, groups = next(iter(group_sets.items()))
     cols = np.concatenate([gidx[g] for g in groups if g in gidx])
     mz = []
@@ -101,7 +101,7 @@ def evaluate_h(exp, h, seeds, out):
             mz.append(dict(h=h, block=b0, model=m, alpha=a, beta=b, r2=r2))
     pd.DataFrame(mz).to_csv(out / f"mz_h{h}.csv", index=False)
 
-    # ---- per-year QLIKE (first group set)
+    # per-year QLIKE (first group set)
     panel_dates = load_panel()["dates"]
     years = pd.Series(panel_dates[run["origins"]]).str[:4].to_numpy()
     yr = []
@@ -112,7 +112,7 @@ def evaluate_h(exp, h, seeds, out):
                 yr.append(dict(h=h, model=m, year=int(Y), qlike=q[years == Y].mean()))
     pd.DataFrame(yr).to_csv(out / f"yearly_h{h}.csv", index=False)
 
-    # ---- seed dispersion of NN losses (first group set)
+    # seed dispersion of NN losses (first group set)
     sd = []
     for m, runs in ((m, r) for m, r in run["F_seed"].items() if m in Lq):  # skip tagged variants (-K2, -P50, ...)
         vals = [np.nanmean(qlike(y[:, cols], f[:, cols])) for f in runs.values()]
@@ -120,7 +120,7 @@ def evaluate_h(exp, h, seeds, out):
                        ensemble=np.nanmean(Lq[m][:, cols])))
     pd.DataFrame(sd).to_csv(out / f"seeds_h{h}.csv", index=False)
 
-    # ---- permutation consistency
+    # permutation consistency
     perm_path = RESULTS / exp / "perm_portfolios.json"
     pp = load(perm_path) if perm_path.exists() else []
     src = np.array([p["src"] for p in pp], dtype=int)
@@ -146,7 +146,7 @@ def evaluate_h(exp, h, seeds, out):
                        qlike_range_over_orderings=a[3]))
     pd.DataFrame(pc).to_csv(out / f"perm_h{h}.csv", index=False)
 
-    # ---- VaR backtest (h = 1)
+    # VaR backtest (h = 1)
     if h == 1:
         p = load_panel()
         R = p["R"].astype(np.float64)
@@ -162,7 +162,7 @@ def evaluate_h(exp, h, seeds, out):
 
 if __name__ == "__main__":
     exp = sys.argv[1] if len(sys.argv) > 1 else "main"
-    seeds = [int(s) for s in sys.argv[2:]] or None
+    seeds = [int(s) for s in sys.argv[2:]] or [0, 1, 2]
     out = RESULTS / exp / "tables"
     out.mkdir(parents=True, exist_ok=True)
     for h in HORIZONS:

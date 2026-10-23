@@ -15,10 +15,12 @@ import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
 from pvol.config import HORIZONS, RESULTS  # noqa: E402
-from pvol.evaluate import CLASSICAL, daily_loss, dm_test, group_index, load_run, mse, qlike  # noqa: E402
+from pvol.evaluate import CLASSICAL, daily_loss, dm_test, group_index, load_run, mse, patton_bm1, qlike  # noqa: E402
 
 ALPHA = 0.05
 SUFFIX = next((a.split("=", 1)[1] for a in sys.argv if a.startswith("--suffix=")), "")
+# fourth series S1a (H2-ext): best classical benchmark chosen from the extended set of classical models
+EXT = ["HAR-WLS", "LogHAR-X", "HEAVY", "PCA-F"] if "--ext" in sys.argv else []
 SYMMETRIC = ["DeepSets", "PENet", "SetTransformer", "SetGRU", "EQCov"]
 COUNTERPART = {"DeepSets": "MLP", "PENet": "MLP", "SetTransformer": "MLP", "EQCov": "MLP", "SetGRU": "GRU"}
 BLOCKS = {"in-range": ["N5", "N10", "N20", "N10-conc", "N10-EW"], "larger-N": ["N30", "N40", "EW-all"],
@@ -77,8 +79,8 @@ def run(exp, lossfn):
         if SUFFIX:  # robustness variant: replace every network by its '<model><SUFFIX>' forecasts (e.g. protocol B)
             if not any(k.endswith(SUFFIX) for k in F):
                 continue
-            nets = [k for k in F if k not in CLASSICAL and not k.endswith(("-K2", "-K4", "-P2"))]
-            F = {**{k: v for k, v in F.items() if k in CLASSICAL}, **{m: F[m + SUFFIX] for m in nets if m + SUFFIX in F}}
+            nets = [k for k in F if k not in CLASSICAL + EXT and not k.endswith(("-K2", "-K4", "-P2"))]
+            F = {**{k: v for k, v in F.items() if k in CLASSICAL + EXT}, **{m: F[m + SUFFIX] for m in nets if m + SUFFIX in F}}
         gidx = group_index(R["ports"])
         L = {m: lossfn(y, F[m]) for m in F}
         blocks = [b for b in BLOCKS if any(g in gidx for g in BLOCKS[b])]
@@ -96,7 +98,7 @@ def run(exp, lossfn):
                         rows.append(dict(hypothesis=hyp, h=h, block=b, model=a, benchmark=c, **res))
                 out += family(rows)
             # H2: symmetric vs best classical benchmark of the block (chosen ex post, conservative)
-            classical = [m for m in CLASSICAL if m in ok]
+            classical = [m for m in CLASSICAL + EXT if m in ok]
             if classical:
                 bench = min(classical, key=lambda m: np.nanmean(L[m][:, cols]))
                 rows = []
@@ -143,10 +145,11 @@ def run(exp, lossfn):
 if __name__ == "__main__":
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     use_mse = "--mse" in sys.argv
-    lossfn = mse if use_mse else qlike
+    use_b1 = "--b1" in sys.argv  # fourth series: Patton (2011) robust loss with b = -1
+    lossfn = mse if use_mse else (patton_bm1 if use_b1 else qlike)
     frames = [run(exp, lossfn) for exp in (args or ["main", "heldout"]) if (RESULTS / exp).exists()]
     df = pd.concat(frames, ignore_index=True)
-    name = ("hypotheses_mse" if use_mse else "hypotheses") + (SUFFIX.replace("-", "_") if SUFFIX else "") + ".csv"
+    name = ("hypotheses_mse" if use_mse else "hypotheses_bm1" if use_b1 else "hypotheses") + (SUFFIX.replace("-", "_") if SUFFIX else "") + ("_ext" if EXT else "") + ".csv"
     for exp in args or ["main", "heldout"]:
         (RESULTS / exp / "tables").mkdir(parents=True, exist_ok=True)
     df.to_csv(RESULTS / "main" / "tables" / name, index=False)

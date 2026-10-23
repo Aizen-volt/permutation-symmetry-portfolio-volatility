@@ -7,6 +7,9 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+import json  # noqa: E402
+
+import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
 from pvol.config import RESULTS  # noqa: E402
@@ -16,30 +19,18 @@ BASE = Path(str(RESULTS).replace("_stocks", ""))
 UNIVERSES = [("ETF", BASE), ("Stocks", Path(str(BASE) + "_stocks"))]
 E, R = "economic_tests.csv", "hypotheses_review.csv"
 
+F4 = "hypotheses_fourth.csv"
 # (label, file, filter[, suffix of the results directory that replaces the stock universe]); file None = section title
+# main text: the families of the three research questions
 ROWS = [
+    ("RQ1: architecture against learned symmetry", None, None),
     ("H1: symmetric vs counterpart, $h=1$", "hypotheses.csv", dict(hypothesis="H1", h=1, block="in-range")),
     ("H1: symmetric vs counterpart, $h=5$", "hypotheses.csv", dict(hypothesis="H1", h=5, block="in-range")),
     ("H1: symmetric vs counterpart, $h=22$", "hypotheses.csv", dict(hypothesis="H1", h=22, block="in-range")),
-    ("H1: minimum-variance portfolios", E, dict(hypothesis="H1-minvar")),
-    *[(f"H1: volatility targeting, $h={h}$", E, dict(hypothesis="H1-voltarget", h=h)) for h in (1, 5, 22)],
-    ("H2: symmetric vs best classical, $h=1$", "hypotheses.csv", dict(hypothesis="H2", h=1, block="in-range")),
-    ("H2: symmetric vs best classical, $h=5$", "hypotheses.csv", dict(hypothesis="H2", h=5, block="in-range")),
-    ("H2: symmetric vs best classical, $h=22$", "hypotheses.csv", dict(hypothesis="H2", h=22, block="in-range")),
-    ("H2: minimum-variance portfolios", E, dict(hypothesis="H2-minvar")),
-    *[(f"H2: volatility targeting, $h={h}$", E, dict(hypothesis="H2-voltarget", h=h)) for h in (1, 5, 22)],
-    ("H3a: advantage grows with $N$", "hypotheses.csv", dict(hypothesis="H3a", h=5)),
-    ("H3b: long--short weights, $h=5$", "hypotheses.csv", dict(hypothesis="H3b", h=5)),
-    ("H3c: unseen assets, $h=5$", "hypotheses.csv", dict(hypothesis="H3c", h=5)),
-    ("H4: short training history", "hypotheses.csv", dict(hypothesis="H4")),
-    ("Second series", None, None),
     ("HE1: raw inputs", "hypotheses_extra.csv", dict(hypothesis="HE1")),
-    ("HE1d: larger advantage than with summaries", "hypotheses_extra.csv", dict(hypothesis="HE1d")),
     ("HE2: pool of 50 portfolios", "hypotheses_extra.csv", dict(hypothesis="HE2", block="in-range, pool 50")),
     ("HE2: pool of 500 portfolios", "hypotheses_extra.csv", dict(hypothesis="HE2", block="in-range, pool 500")),
-    ("HE2d: larger advantage with 50 than 500", "hypotheses_extra.csv", dict(hypothesis="HE2d")),
-    ("HE3: portfolios with $N>20$", "hypotheses_extra.csv", dict(hypothesis="HE3")),
-    ("Third series (exploratory)", None, None),
+    ("RQ2: cheap routes to invariance", None, None),
     ("R1a: pool of 50 vs shuffled counterpart", R, dict(hypothesis="R1a", block="in-range, pool 50, shuffled counterpart")),
     ("R1a: pool of 500 vs shuffled counterpart", R,
      dict(hypothesis="R1a", block="in-range, pool 500, shuffled counterpart")),
@@ -49,48 +40,119 @@ ROWS = [
     ("R2: vs MLP-sorted, pool of 500", R, dict(hypothesis="R2", block="in-range, pool 500")),
     ("R3: vs counterpart averaged over orderings, $h=1$", R, dict(hypothesis="R3", h=1)),
     ("R3: vs counterpart averaged over orderings, $h=5$", R, dict(hypothesis="R3", h=5)),
-    ("R4: Deep Sets + pairs vs MLP, raw inputs", R, dict(hypothesis="R4")),
     ("R5: H1 on 54 stocks, $h=1$", R, dict(hypothesis="R5", h=1), "_stocks54"),
     ("R5: H1 on 54 stocks, $h=5$", R, dict(hypothesis="R5", h=5), "_stocks54"),
+    ("S2: H1 with ten seeds, $h=1$", F4, dict(hypothesis="S2-H1", h=1)),
+    ("S2: R3 with ten seeds, $h=1$", F4, dict(hypothesis="S2-R3", h=1)),
+    ("S2: R5 with ten seeds, $h=1$", F4, dict(hypothesis="S2-R5", h=1), "_stocks54"),
+    ("RQ3: flexibility and classical benchmarks", None, None),
+    *[(f"S1b: symmetric vs invariant linear, $h={h}$", F4, dict(hypothesis="S1b", h=h, benchmark="Linear"))
+      for h in (1, 5, 22)],
+    *[(f"H2: symmetric vs best classical, $h={h}$", "hypotheses.csv", dict(hypothesis="H2", h=h, block="in-range"))
+      for h in (1, 5, 22)],
+]
+# Supplementary Material: the families moved out of the main text
+ROWS_SUPP = [
+    *[(f"H2 (ten original classical models), $h={h}$", "hypotheses_h2orig.csv",
+       dict(hypothesis="H2", h=h, block="in-range")) for h in (1, 5, 22)],
+    ("H1: minimum-variance portfolios", E, dict(hypothesis="H1-minvar")),
+    *[(f"H1: volatility targeting, $h={h}$", E, dict(hypothesis="H1-voltarget", h=h)) for h in (1, 5, 22)],
+    ("H2: minimum-variance portfolios", E, dict(hypothesis="H2-minvar")),
+    *[(f"H2: volatility targeting, $h={h}$", E, dict(hypothesis="H2-voltarget", h=h)) for h in (1, 5, 22)],
+    ("H3a: advantage grows with $N$", "hypotheses.csv", dict(hypothesis="H3a", h=5)),
+    ("H3b: long--short weights, $h=5$", "hypotheses.csv", dict(hypothesis="H3b", h=5)),
+    ("H3c: unseen assets, $h=5$", "hypotheses.csv", dict(hypothesis="H3c", h=5)),
+    ("H4: short training history", "hypotheses.csv", dict(hypothesis="H4")),
+    ("HE1d: larger advantage than with summaries", "hypotheses_extra.csv", dict(hypothesis="HE1d")),
+    ("HE2d: larger advantage with 50 than 500", "hypotheses_extra.csv", dict(hypothesis="HE2d")),
+    ("HE3: portfolios with $N>20$", "hypotheses_extra.csv", dict(hypothesis="HE3")),
+    ("R4: Deep Sets + pairs vs MLP, raw inputs", R, dict(hypothesis="R4")),
+    *[(f"S1b: symmetric vs GBM, $h={h}$", F4, dict(hypothesis="S1b", h=h, benchmark="GBM")) for h in (1, 5, 22)],
 ]
 
 
+IN_RANGE = ["N5", "N10", "N20", "N10-conc", "N10-EW"]
+
+
+def ewma_loss(root, h, _cache={}):
+    """Mean in-range QLIKE of EWMA (the unit of the effect sizes: one percentage point of EWMA = 0.01 of it)."""
+    key = (str(root), h)
+    if key not in _cache:
+        d = root / "main" / f"h{h}"
+        if not (d / "targets.npy").exists():
+            _cache[key] = None
+            return None
+        y = np.maximum(np.load(d / "targets.npy"), 1e-12)
+        f = np.exp(np.load(d / "preds" / "EWMA.npy").astype(np.float64))
+        ports = json.loads((root / "main" / "portfolios.json").read_text())
+        cols = [j for j, p in enumerate(ports) if p["group"] in IN_RANGE]
+        r = y[:, cols] / f[:, cols]
+        _cache[key] = float(np.mean(r - np.log(r) - 1))
+    return _cache[key]
+
+
 def cell(root, fname, flt):
+    """(verdict count, effect range): effect = mean daily loss differential (first model minus second) in percentage
+    points of the in-range EWMA loss; negative favours the symmetric network. Economic comparisons: no effect size."""
     f = root / "main" / "tables" / fname
     if not f.exists():
-        return "--"
+        return "--", ""
     d = pd.read_csv(f)
     for k, v in flt.items():
         if k not in d.columns:
-            return "--"
+            return "--", ""
         d = d[d[k] == v]
     if not len(d):
-        return "--"
+        return "--", ""
     good = (d.verdict == "more accurate").sum()
     bad = (d.verdict == "less accurate").sum()
-    return f"{good}/{len(d)}" + (f" ($-${bad})" if bad else "")
+    count = f"{good}/{len(d)}" + (f" ($-${bad})" if bad else "")
+    eff = ""
+    if fname != E and "mean_diff" in d.columns:
+        h = int(d.h.iloc[0]) if "h" in d.columns and d.h.notna().all() else 5
+        e = ewma_loss(root, h)
+        if e:
+            v = 100 * d.mean_diff.to_numpy() / e
+            lo, hi = v.min(), v.max()
+            fmt = lambda x: f"${x:.1f}$".replace("$-", "$-")
+            eff = fmt(lo) if abs(hi - lo) < 0.05 else f"{fmt(lo)} to {fmt(hi)}"
+    return count, eff
 
 
-if __name__ == "__main__":
+def write(rows, name, label, caption):
     L = ["\\begin{table}[t]\\centering\\small",
-         "\\caption{Verdicts for every hypothesis and both universes. Each cell reports how many of the tested "
-         "comparisons of the family are decided in favour of the symmetry-respecting network (QLIKE lower and the "
-         "Diebold--Mariano test significant at 5\\% after the Holm correction), out of the comparisons tested; "
-         "$-k$ marks $k$ comparisons decided significantly against it. `--' means the family was not run for that "
-         "universe. The third series was designed after all other results had been seen; R5 is run on a subsample of "
-         "54 stocks and reported in the stock column. $^{a}$Comparisons in which the counterpart trained on the pool in "
-         "random orders is more accurate than the same network in a fixed order (MLP and GRU, pools of 50 and 500)."
-         "}\\label{tab:scoreboard}",
-         "\\begin{tabular}{lcc}\\toprule",
-         "Hypothesis & " + " & ".join(u for u, _ in UNIVERSES) + "\\\\ \\midrule"]
-    for label, fname, flt, *alt in ROWS:
+         "\\caption{" + caption + " Each cell reports how many of the tested comparisons of the family are decided in favour "
+         "of the symmetry-respecting network (QLIKE lower and the Diebold--Mariano test significant at 5\\% after the Holm "
+         "correction), out of the comparisons tested; $-k$ marks $k$ comparisons decided significantly against it. `--' "
+         "means the family was not run for that universe; R5 and the S2 repetition of R5 are run on a subsample of 54 "
+         "stocks and reported in the stock column. Effect: range over the comparisons of the mean daily QLIKE "
+         "differential (first model minus second), in percentage points of the in-range EWMA loss; negative values "
+         "favour the symmetric network (for the difference-in-differences families and H3a, H4: the stated condition). "
+         "No effect size for the economic comparisons." + ("" if name != "scoreboard" else " $^{a}$Comparisons in which the "
+         "counterpart trained on the pool in random orders is more accurate than the same network in a fixed order (MLP "
+         "and GRU, pools of 50 and 500).") + "}\\label{" + label + "}",
+         "\\begin{tabular}{lcrcr}\\toprule",
+         " & " + " & ".join(f"\\multicolumn{{2}}{{c}}{{{u}}}" for u, _ in UNIVERSES) + "\\\\",
+         "\\cmidrule(lr){2-3}\\cmidrule(lr){4-5}",
+         "Hypothesis & " + " & ".join("verdict & effect (pp)" for _ in UNIVERSES) + "\\\\ \\midrule"]
+    for i, (lbl, fname, flt, *alt) in enumerate(rows):
         if fname is None:
-            L += ["\\midrule", f"\\multicolumn{{3}}{{l}}{{\\emph{{{label}}}}}\\\\"]
+            L += ([] if i == 0 else ["\\midrule"]) + [f"\\multicolumn{{5}}{{l}}{{\\emph{{{lbl}}}}}\\\\"]
             continue
         roots = [root for _, root in UNIVERSES]
         if alt:  # run on a sub-universe only (R5): no ETF cell, stock cell from that directory
             roots = [None, Path(str(BASE) + alt[0])]
-        L.append(f"{label} & " + " & ".join(cell(r, fname, flt) if r else "--" for r in roots) + "\\\\")
+        cells = [cell(r, fname, flt) if r else ("--", "") for r in roots]
+        L.append(f"{lbl} & " + " & ".join(f"{c} & {e}" for c, e in cells) + "\\\\")
     L += ["\\bottomrule\\end{tabular}", "\\end{table}"]
-    (OUT / "scoreboard.tex").write_text("\n".join(L), encoding="utf-8")
+    (OUT / f"{name}.tex").write_text("\n".join(L), encoding="utf-8")
     print("\n".join(L[4:-2]))
+
+
+if __name__ == "__main__":
+    write(ROWS, "scoreboard", "tab:scoreboard",
+          "Verdicts of the hypotheses of the three research questions, both universes. H1 and H2 are confirmatory, the "
+          "second series (HE) was specified before it was run, the third (R) and fourth (S) series are exploratory "
+          "(Section~\\ref{sec:hypotheses}). H2: best of the fourteen classical models.")
+    write(ROWS_SUPP, "scoreboard_supp", "tab:scoreboard_supp",
+          "Verdicts of the families reported in the Supplementary Material, both universes.")

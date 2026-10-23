@@ -1,4 +1,4 @@
-"""Third series of experiments (R1-R5), registered in docs/JOURNAL.md section 4b before running.
+"""Third series of experiments (R1-R5), hypotheses and decision rules fixed before running.
 
 R1 (tags MLP-P50s, GRU-P500s, ...): fixed pools of E2, but a fresh random order of the assets in every draw.
 R2 (tags MLP-sorted-RAW, MLP-sorted-P50, MLP-sorted-P500): canonicalisation under the second-series conditions.
@@ -6,8 +6,8 @@ R3 (tags MLP-TTA, GRU-TTA): main-design networks whose forecast averages 8 rando
 R4 (tags DeepSetsP, DeepSetsP-RAW): Deep Sets with the weight-averaged correlation of each constituent as extra input.
 R5 (PVOL_UNIVERSE=stocks54): the main networks on a 54-stock subsample, h = 1 and 5.
 
-Usage: python scripts/23_review_experiments.py R1 R2 R3 R4        (PVOL_UNIVERSE=stocks ... for the stock universe)
-       PVOL_UNIVERSE=stocks54 python scripts/23_review_experiments.py R5
+Usage: python scripts/23_third_series.py R1 R2 R3 R4        (PVOL_UNIVERSE=stocks ... for the stock universe)
+       PVOL_UNIVERSE=stocks54 python scripts/23_third_series.py R5
 Resumable: finished (tag, seed) pairs are skipped.
 """
 import sys

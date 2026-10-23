@@ -11,15 +11,21 @@ from scipy import stats
 from .config import RESULTS
 from .portfolios import load
 
-CLASSICAL = ["HIST", "EWMA", "HAR", "HARX", "GARCH", "GJR", "DCC", "LW", "EWMANLS", "DCCNL"]
-NEURAL = ["PortMLP", "MLP", "MLP-sorted", "GRU", "DeepSets", "PENet", "SetTransformer", "SetGRU", "EQCov"]
-INVARIANT = {"PortMLP", "MLP-sorted", "DeepSets", "PENet", "SetTransformer", "SetGRU", "EQCov"}
+# HAR-WLS, LogHAR-X, HEAVY and PCA-F: stronger classical benchmarks of the fourth series (scripts/26_benchmarks_ext.py)
+CLASSICAL = ["HIST", "EWMA", "HAR", "HAR-WLS", "HARX", "LogHAR-X", "HEAVY", "GARCH", "GJR", "DCC", "LW", "EWMANLS", "DCCNL",
+             "PCA-F"]
+# Linear and GBM: learned benchmarks on the information of the networks (fourth series)
+NEURAL = ["PortMLP", "Linear", "GBM", "MLP", "MLP-sorted", "GRU", "DeepSets", "PENet", "SetTransformer", "SetGRU", "EQCov"]
+INVARIANT = {"PortMLP", "Linear", "GBM", "MLP-sorted", "DeepSets", "PENet", "SetTransformer", "SetGRU", "EQCov"}
 Y_FLOOR = 1e-12
 
 
-# ------------------------------------------------------------------ loading
-def load_run(exp, h, seeds=None):
-    """Targets, origins, portfolios and forecasts (variance units). NN forecasts: per seed and seed-ensemble."""
+# loading
+def load_run(exp, h, seeds=(0, 1, 2)):
+    """Targets, origins, portfolios and forecasts (variance units). NN forecasts: per seed and seed-ensemble.
+
+    seeds: the seeds to load, by default the seeds 0-2 of the main analysis (the fourth series S2 stores seeds 3-9 of
+    the stock universe under the same tags); None loads every seed on disk."""
     d = RESULTS / exp / f"h{h}"
     y = np.load(d / "targets.npy")
     origins = np.load(d / "origins.npy")
@@ -39,7 +45,7 @@ def load_run(exp, h, seeds=None):
     return dict(y=y, origins=origins, ports=ports, F=F, F_seed=F_seed)
 
 
-# ------------------------------------------------------------------ losses
+# losses
 def qlike(y, f):
     r = np.maximum(y, Y_FLOOR) / f
     return r - np.log(r) - 1.0
@@ -47,6 +53,12 @@ def qlike(y, f):
 
 def mse(y, f):
     return (y - f) ** 2
+
+
+def patton_bm1(y, f):
+    """Patton (2011) robust loss with b = -1 (homogeneous of degree 1), between QLIKE (b = -2) and MSE (b = 0)."""
+    y = np.maximum(y, Y_FLOOR)
+    return y * np.log(y / f) - y + f
 
 
 def group_index(ports):
@@ -59,7 +71,7 @@ def daily_loss(L, cols):
     return np.nanmean(L[:, cols], axis=1)
 
 
-# ------------------------------------------------------------------ Diebold-Mariano (HLN-corrected, NW HAC)
+# Diebold-Mariano (HLN-corrected, NW HAC)
 def dm_test(d, h):
     """Two-sided DM test of E[d]=0 for loss differential series d; returns (stat, p-value).
 
@@ -81,7 +93,7 @@ def dm_test(d, h):
     return stat, p
 
 
-# ------------------------------------------------------------------ Model Confidence Set (Hansen, Lunde, Nason 2011)
+# Model Confidence Set (Hansen, Lunde, Nason 2011)
 def mcs(loss_df, size=0.10, reps=5000, block=None, seed=0):
     block = block or max(5, int(round(len(loss_df) ** (1 / 3))))
     m = MCS(loss_df, size=size, reps=reps, block_size=block, method="R", bootstrap="stationary", seed=seed)
@@ -89,7 +101,7 @@ def mcs(loss_df, size=0.10, reps=5000, block=None, seed=0):
     return m.pvalues["Pvalue"].reindex(loss_df.columns)
 
 
-# ------------------------------------------------------------------ Mincer-Zarnowitz
+# Mincer-Zarnowitz
 def mincer_zarnowitz(y, f):
     """Pooled regression y = a + b f + e; returns (a, b, R^2)."""
     ok = np.isfinite(f)
@@ -100,7 +112,7 @@ def mincer_zarnowitz(y, f):
     return beta[0], beta[1], r2
 
 
-# ------------------------------------------------------------------ VaR backtests (h = 1)
+# VaR backtests (h = 1)
 def kupiec_pof(hits, alpha):
     n, x = len(hits), int(hits.sum())
     pi = x / n

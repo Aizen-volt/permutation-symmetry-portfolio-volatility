@@ -85,7 +85,7 @@ class Experiment:
         np.save(d / "targets.npy", realized_targets(self.panel, self.portfolios, t_idx, h))
         return t_idx
 
-    # ------------------------------------------------------------------ neural networks
+    # neural networks
     def run_nn(self, name, h, seeds, hp=None, cfg=None, years=TEST_YEARS, tag=None, skip_existing=True, train_years=None,
                tta_k=0):
         d = self.hdir(h)
@@ -110,7 +110,7 @@ class Experiment:
             np.save(out, np.concatenate(parts).astype(np.float32))
             np.save(d / "preds" / f"{tag}__s{seed}__perm.npy", np.concatenate(perm_parts).astype(np.float32))
 
-    # ------------------------------------------------------------------ classical benchmarks
+    # classical benchmarks
     def run_baselines(self, h, years=TEST_YEARS, which=("HIST", "EWMA", "HAR", "HARX", "GARCH", "GJR", "DCC")):
         d = self.hdir(h)
         R = self.np["R"].astype(np.float64)

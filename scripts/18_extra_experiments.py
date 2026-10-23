@@ -1,4 +1,4 @@
-"""Second series of experiments (hypotheses registered in docs/JOURNAL.md, section 4a, before running), h = 5.
+"""Second series of experiments (hypotheses and decision rules fixed before running), h = 5.
 
 E1 (tag -RAW):   no engineered portfolio-level summaries (constant anchor, no portfolio HAR, no Euler contributions).
 E2 (tag -P50/-P500): training and validation on a fixed pool of 50 / 500 portfolios with a fixed asset order.

@@ -8,13 +8,13 @@ when mixing e.g. European and US local-market indices).
 from .config import UNIVERSE_NAME
 
 ETF_UNIVERSE = {
-    # --- US equity (broad) ---
+    # US equity (broad)
     "SPY": "equity_us",
     "QQQ": "equity_us",
     "IWM": "equity_us",
     "DIA": "equity_us",
     "MDY": "equity_us",
-    # --- US equity sectors (Select Sector SPDRs, 1998) ---
+    # US equity sectors (Select Sector SPDRs, 1998)
     "XLB": "equity_sector",
     "XLE": "equity_sector",
     "XLF": "equity_sector",
@@ -24,7 +24,7 @@ ETF_UNIVERSE = {
     "XLU": "equity_sector",
     "XLV": "equity_sector",
     "XLY": "equity_sector",
-    # --- International equity ---
+    # International equity
     "EFA": "equity_intl",
     "EEM": "equity_intl",
     "VGK": "equity_intl",
@@ -39,7 +39,7 @@ ETF_UNIVERSE = {
     "EWT": "equity_intl",
     "EWW": "equity_intl",
     "EWH": "equity_intl",
-    # --- Fixed income ---
+    # Fixed income
     "SHY": "bond",
     "IEF": "bond",
     "TLT": "bond",
@@ -50,11 +50,11 @@ ETF_UNIVERSE = {
     "EMB": "bond",
     "MBB": "bond",
     "BWX": "bond",
-    # --- Real estate ---
+    # Real estate
     "IYR": "real_estate",
     "VNQ": "real_estate",
     "RWX": "real_estate",
-    # --- Commodities ---
+    # Commodities
     "GLD": "commodity",
     "SLV": "commodity",
     "USO": "commodity",
@@ -62,7 +62,7 @@ ETF_UNIVERSE = {
     "DBC": "commodity",
     "DBA": "commodity",
     "DBB": "commodity",
-    # --- Currencies ---
+    # Currencies
     "FXE": "fx",
     "FXY": "fx",
     "FXB": "fx",

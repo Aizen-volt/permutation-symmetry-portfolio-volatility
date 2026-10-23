@@ -1,4 +1,4 @@
-"""Tests of the pre-registered hypotheses HE1-HE3 (docs/JOURNAL.md, section 4a) with the decision rules of H1-H4.
+"""Tests of the hypotheses HE1-HE3, fixed before the second series was run, with the decision rules of H1-H4.
 
 HE1   raw inputs: symmetric-RAW vs counterpart-RAW (in-range), Holm over 4 pairs;
 HE1d  (symmetric - counterpart) differential lower in RAW than in the main experiment (difference-in-differences);

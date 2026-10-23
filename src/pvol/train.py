@@ -31,6 +31,8 @@ class TrainCfg:
     portfolio_pool: int = 0  # experiment E2: train (and validate) on a fixed pool of this many portfolios; 0 = fresh draws
     pool_seed: int = 4242  # the same pool for every model and seed
     pool_shuffle: bool = False  # experiment R1: list the pool's assets in a fresh random order in every draw
+    refit: bool = False  # fourth series S3: after early stopping, retrain from scratch on train+validation
+    refit_min_epochs: int = 5  # S3: the refit runs for max(best epoch, this) epochs
 
 
 def qlike(s, y):
@@ -127,10 +129,50 @@ def train_model(name, panel, split, h, seed, cfg=None, hp=None, verbose=False):
     if cfg.top_k_avg > 1:
         best_state = {k: sum(st[k] for _, st in top) / len(top) for k in best_state}
     model.load_state_dict(best_state)
+    refit_epochs = 0
+    if cfg.refit:  # S3: the validation year only chooses the number of epochs; retrain on train + validation
+        best_epoch = 1 + int(np.argmin([r[2] for r in hist]))
+        refit_epochs = max(best_epoch, cfg.refit_min_epochs)
+        model = _refit(name, panel, split, h, seed, cfg, hp, gru_len, refit_epochs)
     model.raw_inputs = cfg.raw_inputs  # prediction must use the same input mode
     info = dict(model=name, h=h, seed=seed, best_val=best, epochs=len(hist), seconds=time.time() - t0,
-                n_params=sum(p.numel() for p in model.parameters()), history=hist, cfg=asdict(cfg), hp=hp or {})
+                n_params=sum(p.numel() for p in model.parameters()), history=hist, cfg=asdict(cfg), hp=hp or {},
+                refit_epochs=refit_epochs)
     return model, info
+
+
+def _refit(name, panel, split, h, seed, cfg, hp, gru_len, n_epochs):
+    """Train a fresh model on all origins up to the end of the validation year (targets kept inside) for a fixed number
+    of epochs, with the learning-rate schedule of the selection run; returns the EMA weights after the last epoch."""
+    full = (split.train[0], split.val[1])
+    torch.manual_seed(seed + 10_000)
+    model = build_model(name, hp).to(panel.device)
+    ema = copy.deepcopy(model)
+    for q in ema.parameters():
+        q.requires_grad_(False)
+    panel.fit_scalers(full, torch.Generator(device=panel.device).manual_seed(0))
+    gen = torch.Generator(device=panel.device).manual_seed(seed + 10_000)
+    rng = np.random.default_rng(seed + 10_000)
+    opt = torch.optim.AdamW(model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
+    sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=cfg.max_epochs)
+    for _ in range(n_epochs):
+        model.train()
+        for _ in range(cfg.steps_per_epoch):
+            N = int(rng.integers(cfg.n_min, cfg.n_max + 1))
+            alpha = float(rng.choice(cfg.alphas))
+            t, S, w = panel.sample(cfg.batch, N, full, gen, alpha=alpha)
+            inp, y = panel.batch(t, S, w, h=h, gru_len=gru_len, raw=cfg.raw_inputs)
+            loss = qlike(model(inp), y).mean()
+            opt.zero_grad(set_to_none=True)
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), cfg.grad_clip)
+            opt.step()
+            with torch.no_grad():
+                for e, q in zip(ema.parameters(), model.parameters()):
+                    e.lerp_(q, 1 - cfg.ema_decay)
+        sched.step()
+    model.load_state_dict(ema.state_dict())
+    return model
 
 
 @torch.no_grad()

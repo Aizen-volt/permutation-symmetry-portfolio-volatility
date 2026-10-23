@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# Full pipeline in the order used for the paper. The neural steps need a CUDA GPU and take several days in total;
+# every training script is resumable (finished (tag, seed) pairs are skipped), so the script can be re-run after an
+# interruption. Tables and figures are written to paper/tables and paper/figures.
+set -eo pipefail
+cd "$(dirname "$0")/.."
+PY=${PY:-.venv/Scripts/python}
+mkdir -p logs
+
+universe() {  # $1 = etf | stocks, $2 = horizons of the held-out-assets experiment
+    export PVOL_UNIVERSE=$1
+    $PY scripts/01_download.py
+    $PY scripts/02_build_panel.py
+    $PY scripts/07_descriptives.py
+    $PY scripts/03_tune.py
+    $PY scripts/04_baselines.py
+    $PY scripts/04b_harx.py
+    $PY scripts/04c_shrinkage.py
+    $PY scripts/26_benchmarks_ext.py
+    $PY scripts/27_gbm.py
+    $PY scripts/05_train.py --exp main
+    $PY scripts/05_train.py --exp heldout --h $2
+    $PY scripts/08_ablation_datasize.py
+    $PY scripts/13_minvar.py
+    $PY scripts/18_extra_experiments.py E2 E1 E3
+    $PY scripts/23_third_series.py R1 R2 R3 R4
+    $PY scripts/25_fourth_series.py LIN S2
+    $PY scripts/06_evaluate.py main
+    $PY scripts/06_evaluate.py heldout
+    $PY scripts/12_vol_targeting.py main
+    $PY scripts/15_hypotheses.py main
+    $PY scripts/15_hypotheses.py main --ext
+    $PY scripts/15_hypotheses.py heldout
+    $PY scripts/17_economic_tests.py
+    $PY scripts/19_extra_hypotheses.py
+    $PY scripts/24_third_hypotheses.py
+    $PY scripts/29_fourth_hypotheses.py
+    $PY scripts/28_fourth_analyses.py
+    $PY scripts/22_compute_cost.py
+}
+
+universe etf "5 1 22" 2>&1 | tee logs/etf.log
+# ETF universe only: alternative training protocol, EQ-Cov diagnostics, validation diagnostic at h = 22
+PVOL_UNIVERSE=etf $PY scripts/14_robust_protocol.py
+PVOL_UNIVERSE=etf $PY scripts/15_hypotheses.py main --suffix=-P2
+PVOL_UNIVERSE=etf $PY scripts/11_eqcov_diagnostics.py
+PVOL_UNIVERSE=etf $PY scripts/16_validation_diagnostic_h22.py
+
+universe stocks 5 2>&1 | tee logs/stocks.log
+
+# 54-stock subsample (R5 and its seeds 3-9); prices are read from the stock universe
+export PVOL_UNIVERSE=stocks54
+$PY scripts/02_build_panel.py
+$PY scripts/03_tune.py
+$PY scripts/04_baselines.py main
+$PY scripts/23_third_series.py R5
+$PY scripts/25_fourth_series.py S2
+$PY scripts/24_third_hypotheses.py
+$PY scripts/29_fourth_hypotheses.py
+unset PVOL_UNIVERSE
+
+# tables and figures for both universes
+$PY scripts/10_tables_tex.py
+$PY scripts/20_scoreboard.py
+$PY scripts/21_hypothesis_tables.py
+$PY scripts/30_fourth_tables.py
+$PY scripts/09_figures.py

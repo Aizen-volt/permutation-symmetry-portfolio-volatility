@@ -58,7 +58,7 @@ def node_inputs(inp):
 F_NODE = F_ASSET + F_PORT + F_G
 
 
-# ---------------------------------------------------------------- aggregate / non-invariant baselines
+# aggregate / non-invariant baselines
 class PortMLP(nn.Module):
     def __init__(self, hidden=(64, 64), dropout=0.0):
         super().__init__()
@@ -125,7 +125,7 @@ class GRUConcat(nn.Module):
         return inp["base"] + self.head(z).squeeze(-1)
 
 
-# ---------------------------------------------------------------- permutation-invariant models
+# permutation-invariant models
 def invariant_pools(h, inp):
     """Mean, weight-weighted and risk-contribution-weighted sums over the set (all permutation invariant)."""
     w = inp["w"][:, :, None]
@@ -319,8 +319,30 @@ class EQCov(nn.Module):
         return (torch.log(var), Sigma) if return_sigma else torch.log(var)
 
 
+class LinearSet(nn.Module):
+    """Linear benchmark on the information of the networks (fourth series, S1): the residual on the log EWMA forecast is
+    linear in the portfolio-level features and in the mean, weight-weighted and risk-contribution-weighted averages of the
+    element features (including the weight-averaged correlations c_k = sum_l w_l p_kl). Permutation invariant; separates
+    the contribution of the information from that of the non-linearity."""
+
+    def __init__(self, **kw):
+        super().__init__()
+        self.lin = nn.Linear(3 * (F_NODE + F_PAIR) + F_G, 1)
+        nn.init.zeros_(self.lin.weight)
+        nn.init.zeros_(self.lin.bias)
+
+    @staticmethod
+    def features(inp):
+        c = torch.einsum("bklf,bl->bkf", inp["pair"], inp["w"])
+        return torch.cat([invariant_pools(torch.cat([node_inputs(inp), c], -1), inp), inp["g"]], -1)
+
+    def forward(self, inp):
+        return inp["base"] + self.lin(self.features(inp)).squeeze(-1)
+
+
 MODELS = {
     "PortMLP": PortMLP,
+    "Linear": LinearSet,
     "MLP": MLPConcat,
     "MLP-sorted": lambda **kw: MLPConcat(sort_by_weight=True, **kw),
     "GRU": GRUConcat,

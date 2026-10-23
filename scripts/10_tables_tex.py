@@ -15,7 +15,7 @@ SUF = "" if UNIVERSE_NAME == "etf" else f"_{UNIVERSE_NAME}"  # keep the tables o
 LAB = {"SetTransformer": "Set Transformer", "DeepSets": "Deep Sets", "EQCov": "EQ-Cov", "PENet": "PE-Net",
        "SetGRU": "Set-GRU", "HARX": "HAR-X", "GJR": "GJR-GARCH",
        "EWMANLS": "EWMA-NLS", "DCCNL": "DCC-NL"}
-SYM = {"PortMLP": "agg.", "MLP": "--", "MLP-sorted": "canon.", "GRU": "--", "DeepSets": "arch.", "PENet": "arch.",
+SYM = {"PortMLP": "agg.", "Linear": "pool.", "GBM": "pool.", "MLP": "--", "MLP-sorted": "canon.", "GRU": "--", "DeepSets": "arch.", "PENet": "arch.",
        "SetTransformer": "arch.", "SetGRU": "arch.", "EQCov": "arch."}
 BLOCKS = [("in-range", "In-range"), ("larger-N", "Larger $N$"), ("long-short", "Long--short"), ("structured", "Structured")]
 
@@ -61,26 +61,36 @@ MAIN_NOTE = ("Bold: best model in the column. $^\\dagger$: member of the 90\\% M
              "Neural forecasts are seed ensembles.")
 
 
-def main_table(exp="main"):
-    """Main-text table: in-range portfolios, three horizons, both universes (portrait)."""
+# main text: the strongest classical models, the invariant linear model and the networks; all models in main_all.tex
+MAIN_MODELS = ["EWMA", "HAR", "HARX", "LogHAR-X", "HEAVY", "GJR", "DCC",
+               "Linear", "MLP", "MLP-sorted", "GRU", "DeepSets", "PENet", "SetTransformer", "SetGRU", "EQCov"]
+
+
+def main_table(exp="main", full=False):
+    """In-range portfolios, three horizons, both universes (portrait): main text (selected models) or supplement (all)."""
     cells = {u: qlike_cells(root, exp) for u, root in UNIVERSES}
-    models = [m for m in CLASSICAL + NEURAL if any(m in c.get((h, "in-range"), {}) for c in cells.values() for h in HORIZONS)]
+    models = [m for m in CLASSICAL + NEURAL if (full or m in MAIN_MODELS)
+              and any(m in c.get((h, "in-range"), {}) for c in cells.values() for h in HORIZONS)]
+    first_learned = next(m for m in models if m in NEURAL)
     L = ["\\begin{table}[t]\\centering\\footnotesize\\setlength{\\tabcolsep}{5pt}",
          "\\caption{Out-of-sample QLIKE relative to EWMA (values below 1 beat RiskMetrics) for the in-range portfolios, test "
-         "years 2020--2026, averaged over portfolios and forecast origins. Symmetry: agg.\\ = invariant because only "
-         "portfolio aggregates are used; canon.\\ = canonicalisation by sorting; arch.\\ = architectural; -- = none. "
-         + MAIN_NOTE + " The other portfolio blocks are reported in \\ref{app:blocks}.}\\label{tab:main}",
+         "years 2020--2026, averaged over portfolios and forecast origins" + ("" if full else ", for the strongest "
+         "classical models, the invariant linear model and the networks") + ". Symmetry: agg.\\ = invariant because only "
+         "portfolio aggregates are used; pool.\\ = invariant pooled features; canon.\\ = canonicalisation by sorting; "
+         "arch.\\ = architectural; -- = none. Bold: best of all models in the column. $^\\dagger$: member of the 90\\% "
+         "Model Confidence Set of the column. Learned forecasts are seed ensembles."
+         + ("}\\label{tab:main_all}" if full else " All models are reported in the Supplementary Material.}\\label{tab:main}"),
          "\\begin{tabular}{llrrrrrr}\\toprule",
          " & & " + " & ".join(f"\\multicolumn{{3}}{{c}}{{{u}}}" for u, _ in UNIVERSES) + "\\\\",
          "\\cmidrule(lr){3-5}\\cmidrule(lr){6-8}",
          "Model & Sym. & " + " & ".join(f"$h={h}$" for _ in UNIVERSES for h in HORIZONS) + "\\\\ \\midrule"]
     for m in models:
-        if m in (NEURAL[0], "DeepSets"):
+        if m in (first_learned, "MLP", "DeepSets"):
             L.append("\\midrule")
         vals = [cells[u].get((h, "in-range"), {}).get(m, "--") for u, _ in UNIVERSES for h in HORIZONS]
         L.append(f"{lab(m)} & {SYM.get(m, '')} & " + " & ".join(vals) + "\\\\")
     L += ["\\bottomrule\\end{tabular}", "\\end{table}"]
-    (OUT / "main_main.tex").write_text("\n".join(L), encoding="utf-8")
+    (OUT / ("main_all.tex" if full else "main_main.tex")).write_text("\n".join(L), encoding="utf-8")
 
 
 def blocks_table(exp="main"):
@@ -131,7 +141,7 @@ def dm_table(exp="main", block="in-range"):
          "(HLN-corrected statistics on daily cross-sectional average loss differentials, unadjusted significance): "
          "canonicalisation, reading the constituents, and a learned against a classical covariance model. Negative values "
          "favour the first model. $^{*}$, $^{**}$, $^{***}$: 10\\%, 5\\%, 1\\%. The matched comparisons of the "
-         "hypotheses are in \\ref{app:tests}.}\\label{tab:dm_" + exp + "}",
+         "hypotheses are reported in the appendix of the article.}\\label{tab:dm_" + exp + "}",
          "\\begin{tabular}{lrrrrrr}\\toprule",
          " & " + " & ".join(f"\\multicolumn{{3}}{{c}}{{{u}}}" for u, _ in UNIVERSES) + "\\\\",
          "\\cmidrule(lr){2-4}\\cmidrule(lr){5-7}",
@@ -238,6 +248,7 @@ if __name__ == "__main__":
                    "networks only as an input dummy.", "tab:universe_stocks", place="!htbp", size="footnotesize")
     if UNIVERSE_NAME == "etf":  # the combined tables read both universes
         main_table()
+        main_table(full=True)
         blocks_table()
         dm_table()
         perm_table_both()
