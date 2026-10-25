@@ -75,11 +75,12 @@ def main_table(exp="main", full=False):
     L = ["\\begin{table}[t]\\centering\\footnotesize\\setlength{\\tabcolsep}{5pt}",
          "\\caption{Out-of-sample QLIKE relative to EWMA (values below 1 beat RiskMetrics) for the in-range portfolios, test "
          "years 2020--2026, averaged over portfolios and forecast origins" + ("" if full else ", for the strongest "
-         "classical models, the invariant linear model and the networks") + ". Symmetry: agg.\\ = invariant because only "
-         "portfolio aggregates are used; pool.\\ = invariant pooled features; canon.\\ = canonicalisation by sorting; "
+         "classical models, the invariant linear model and the networks") + ". Symmetry of the learned models: "
+         + ("agg.\\ = invariant because only portfolio aggregates are used; " if full else "")
+         + "pool.\\ = invariant pooled features; canon.\\ = canonicalisation by sorting; "
          "arch.\\ = architectural; -- = none. Bold: best of all models in the column. $^\\dagger$: member of the 90\\% "
          "Model Confidence Set of the column. Learned forecasts are seed ensembles."
-         + ("}\\label{tab:main_all}" if full else " All models are reported in the Supplementary Material.}\\label{tab:main}"),
+         + ("}\\label{tab:main_all}" if full else " The losses of all fourteen classical models are part of the replication package.}\\label{tab:main}"),
          "\\begin{tabular}{llrrrrrr}\\toprule",
          " & & " + " & ".join(f"\\multicolumn{{3}}{{c}}{{{u}}}" for u, _ in UNIVERSES) + "\\\\",
          "\\cmidrule(lr){3-5}\\cmidrule(lr){6-8}",
@@ -141,7 +142,7 @@ def dm_table(exp="main", block="in-range"):
          "(HLN-corrected statistics on daily cross-sectional average loss differentials, unadjusted significance): "
          "canonicalisation, reading the constituents, and a learned against a classical covariance model. Negative values "
          "favour the first model. $^{*}$, $^{**}$, $^{***}$: 10\\%, 5\\%, 1\\%. The matched comparisons of the "
-         "hypotheses are reported in the appendix of the article.}\\label{tab:dm_" + exp + "}",
+         "hypotheses are reported with the test statistics behind the verdicts.}\\label{tab:dm_" + exp + "}",
          "\\begin{tabular}{lrrrrrr}\\toprule",
          " & " + " & ".join(f"\\multicolumn{{3}}{{c}}{{{u}}}" for u, _ in UNIVERSES) + "\\\\",
          "\\cmidrule(lr){2-4}\\cmidrule(lr){5-7}",
@@ -172,8 +173,9 @@ def perm_table_both(exp="main"):
          "\\caption{Permutation consistency: the same 100 ten-asset portfolios are forecast with their constituents listed "
          "in five different orders. Median (panel A) and 99th percentile (panel B), over portfolios and origins, of the "
          "range of the log-variance forecast across the orderings; averages over seeds. A range of 0.07 means that two "
-         "orderings of the same portfolio receive variance forecasts that differ by about 7\\%. For PortMLP, MLP-sorted "
-         "and all architecturally symmetric networks the range is zero up to floating-point error ($<10^{-6}$).}"
+         "orderings of the same portfolio receive variance forecasts that differ by about 7\\%. For the invariant linear "
+         "model, MLP-sorted and all architecturally symmetric networks the range is zero up to floating-point error "
+         "($<10^{-6}$); for MLP-sorted only because the weights are distinct.}"
          "\\label{tab:perm}",
          "\\begin{tabular}{lrrrrrr}\\toprule",
          " & " + " & ".join(f"\\multicolumn{{3}}{{c}}{{{u}}}" for u, _ in UNIVERSES) + "\\\\",

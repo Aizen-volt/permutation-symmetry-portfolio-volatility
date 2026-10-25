@@ -2,8 +2,9 @@
 
 - paper/tables/fourth_losses.tex: in-range loss relative to EWMA under Patton's b = -1 loss and under QLIKE without 2020;
 - paper/tables/fourth_tests.tex: verdict counts of H1 and H2 under the Diebold-Mariano test on the full test sample, on
-  the test origins outside 2020 and under the conditional Giacomini-White test; share of seed pairs with a lower loss of
-  the symmetric network.
+  the test origins outside 2020 and outside 2026, with the Holm correction over all comparisons
+  (scripts/32_precision_multiplicity.py), under the conditional Giacomini-White test and under the alternative training
+  protocols (protocol B, refit); share of seed pairs with a lower loss of the symmetric network.
 """
 import sys
 from pathlib import Path
@@ -59,14 +60,36 @@ def count(d):
     return f"{good}/{len(d)}" + (f" ($-${bad})" if bad else "") if len(d) else "--"
 
 
+def opt_tab(root, name):
+    f = root / "main" / "tables" / f"{name}.csv"
+    return pd.read_csv(f) if f.exists() else None
+
+
+def global_holm(universe):
+    """H1/H2 rows of the main families with the verdict re-decided by the Holm correction over all comparisons."""
+    g = opt_tab(BASE, "global_multiplicity")
+    if g is None:
+        return None
+    g = g[(g.universe == universe) & g.family.str.match(r"H[12]: symmetric vs (counterpart|best classical)")].copy()
+    g["hypothesis"] = g.family.str[:2]
+    g["h"] = g.family.str.extract(r"h=(\d+)").astype(int)
+    g["verdict"] = [v if p < 0.05 else "indistinguishable" for v, p in zip(g.verdict, g.p_global_holm)]
+    return g
+
+
 def tests():
-    L = ["\\begin{table}[t]\\centering\\small",
-         "\\caption{H1 and H2 (in-range, best of the fourteen classical models) under alternative tests. Counts of the "
+    L = ["\\begin{table}[t]\\centering\\footnotesize\\setlength{\\tabcolsep}{3pt}",
+         "\\caption{H1 and H2 (in-range, best of the fourteen classical models) under alternative tests, samples and "
+         "training protocols. Counts of the "
          "comparisons decided in favour of the symmetric network out of five; $-k$ marks $k$ comparisons decided "
-         "against it (Holm correction within each family). DM: Diebold--Mariano test of the main text; excl.\\ 2020: "
-         "the same test on the test origins outside 2020, with the best classical model chosen on that sample; GW: "
+         "against it (Holm correction within each family); `--': not run. DM: the Diebold--Mariano test of "
+         "Section~\\ref{sec:hypotheses}; excl.\\ 2020 (2026): "
+         "the same test on the test origins outside 2020 (outside the incomplete year 2026), with the best classical "
+         "model chosen on that sample; global Holm: the Holm correction over all 427 comparisons of "
+         "the study at once; GW: "
          "conditional Giacomini--White test with instruments 1 and the lagged loss differential, with the sign of the "
-         "mean differential deciding the direction. Seed pairs: share of the pairs (seed of the symmetric network, "
+         "mean differential deciding the direction. Protocol B and refit: networks retrained under the alternative "
+         "protocols of Section~\\ref{sec:res:robust}. Seed pairs: share of the pairs (seed of the symmetric network, "
          "seed of the counterpart) in which the symmetric network has the lower in-range QLIKE, range over the five "
          "pairs; in the stock universe at $h=1$ ten seeds each (100 pairs), otherwise three (9 pairs).}"
          "\\label{tab:fourth_tests}",
@@ -74,22 +97,32 @@ def tests():
          " & & " + " & ".join(f"\\multicolumn{{2}}{{c}}{{{u}}}" for u, _ in UNIVERSES) + "\\\\",
          "\\cmidrule(lr){3-4}\\cmidrule(lr){5-6}",
          "Test & $h$ & " + " & ".join("H1 & H2" for _ in UNIVERSES) + "\\\\ \\midrule"]
-    T = {u: (tab(r, "hypotheses"), tab(r, "hypotheses_ex2020"), tab(r, "gw"), tab(r, "seed_signs")) for u, r in UNIVERSES}
-    for label, k in (("DM", 0), ("DM, excl.\\ 2020", 1), ("GW", 2)):
-        for i, h in enumerate(H):
+    in_range = lambda d: None if d is None else d[d.block == "in-range"]
+    excl = lambda yr: lambda d: None if d is None else d[d.block == f"in-range, excl. {yr}"]
+    specs = [("DM", lambda r, u: in_range(opt_tab(r, "hypotheses"))),
+             ("DM, excl.\\ 2020", lambda r, u: excl(2020)(opt_tab(r, "hypotheses_excl_year"))),
+             ("DM, excl.\\ 2026", lambda r, u: excl(2026)(opt_tab(r, "hypotheses_excl_year"))),
+             ("DM, global Holm", lambda r, u: global_holm(u)),
+             ("GW", lambda r, u: opt_tab(r, "gw")),
+             ("Protocol B", lambda r, u: in_range(opt_tab(r, "hypotheses_P2_ext"))),
+             ("Refit", lambda r, u: in_range(opt_tab(r, "hypotheses_RF_ext")))]
+    for label, get in specs:
+        D = {u: get(r, u) for u, r in UNIVERSES}
+        hs = [h for h in H if any(d is not None and (d.h == h).any() for d in D.values())]
+        for i, h in enumerate(hs):
             cells = []
             for u, _ in UNIVERSES:
-                d = T[u][k]
-                d = d[d.h == h]
-                if k == 0:
-                    d = d[d.block == "in-range"]
-                cells += [count(d[d.hypothesis == f]) for f in ("H1", "H2")]
+                d = D[u]
+                d = None if d is None else d[d.h == h]
+                cells += [count(d[d.hypothesis == f]) if d is not None and len(d) else "--" for f in ("H1", "H2")]
             L.append(f"{label if i == 0 else ''} & {h} & " + " & ".join(cells) + "\\\\")
-        L.append("\\addlinespace")
+        if hs:
+            L.append("\\addlinespace")
+    seeds = {u: tab(r, "seed_signs") for u, r in UNIVERSES}
     for i, h in enumerate(H):
         cells = []
         for u, _ in UNIVERSES:
-            s = T[u][3]
+            s = seeds[u]
             s = s[s.h == h].share_lower
             cells += [f"{s.min():.2f}--{s.max():.2f}" if s.max() - s.min() > 5e-3 else f"{s.min():.2f}", ""]
         L.append(f"{'Seed pairs' if i == 0 else ''} & {h} & " + " & ".join(cells) + "\\\\")

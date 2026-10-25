@@ -1,0 +1,11 @@
+h,block,model,benchmark,mean_diff,dm_stat,p_value
+22,unseen-assets,HIST,MCS,,,0.055
+22,unseen-assets,EWMA,MCS,,,0.1422
+22,unseen-assets,HAR,MCS,,,0.0674
+22,unseen-assets,HARX,MCS,,,0.0352
+22,unseen-assets,GARCH,MCS,,,0.2208
+22,unseen-assets,GJR,MCS,,,1.0
+22,unseen-assets,DCC,MCS,,,0.1288
+22,unseen-assets,LW,MCS,,,0.1288
+22,unseen-assets,EWMANLS,MCS,,,0.1422
+22,unseen-assets,DCCNL,MCS,,,0.1288

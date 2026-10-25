@@ -2,7 +2,11 @@
 
 Train origins up to end-2016, validation (early stopping + selection) on 2017-2018, horizon h=5, seed 0.
 Every architecture gets the same budget: 4 configurations.
+
+Check of the tuning choice (not used for the forecasts): --h H --tag NAME repeats the search at horizon H and writes
+tuning_log_NAME.jsonl and best_hp_NAME.json, leaving best_hp.json unchanged.
 """
+import argparse
 import json
 import sys
 from pathlib import Path
@@ -33,7 +37,12 @@ GRIDS = {
 }
 
 if __name__ == "__main__":
-    h = 5
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--h", type=int, default=5)
+    ap.add_argument("--tag", default="")
+    args = ap.parse_args()
+    h = args.h
+    sfx = f"_{args.tag}" if args.tag else ""
     out_dir = RESULTS / "tuning"
     out_dir.mkdir(parents=True, exist_ok=True)
     p = load_panel()
@@ -41,7 +50,7 @@ if __name__ == "__main__":
     v0 = year_bounds(panel.dates, 2017)[0]
     v1 = year_bounds(panel.dates, 2018)[1]
     split = Split(train=(panel.first_valid + SEQ_MARGIN, v0 - 1 - h), val=(v0, v1 - h))
-    log_path = out_dir / "tuning_log.jsonl"
+    log_path = out_dir / f"tuning_log{sfx}.jsonl"
     done = set()
     if log_path.exists():
         done = {(r["model"], json.dumps(r["hp"], sort_keys=True)) for r in map(json.loads, log_path.read_text().splitlines())}
@@ -63,6 +72,6 @@ if __name__ == "__main__":
     for r in recs:
         if r["model"] not in best or r["best_val"] < best[r["model"]]["best_val"]:
             best[r["model"]] = r
-    (out_dir / "best_hp.json").write_text(json.dumps({k: v["hp"] for k, v in best.items()}, indent=1))
+    (out_dir / f"best_hp{sfx}.json").write_text(json.dumps({k: v["hp"] for k, v in best.items()}, indent=1))
     for k, v in best.items():
         print(f"{k:15s} val {v['best_val']:.4f} params {v['n_params']:7d} hp {v['hp']}")

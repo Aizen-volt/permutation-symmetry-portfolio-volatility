@@ -6,7 +6,7 @@ from dataclasses import asdict, dataclass
 import numpy as np
 import torch
 
-from .dataset import PortfolioPool
+from .dataset import SEQ_MARGIN, PortfolioPool
 from .models import MODELS, SEQ_MODELS, SLOT_MODELS
 
 
@@ -73,6 +73,10 @@ def evaluate_batches(model, panel, batches, h, gru_len, raw=False):
 
 def train_model(name, panel, split, h, seed, cfg=None, hp=None, verbose=False):
     cfg = cfg or TrainCfg()
+    if cfg.refit and cfg.portfolio_pool:
+        raise ValueError("the refit protocol samples fresh portfolios; it is not implemented for a fixed pool")
+    if cfg.gru_len != SEQ_MARGIN:
+        raise ValueError("gru_len must equal dataset.SEQ_MARGIN (prediction and the sample start assume 22 days)")
     torch.manual_seed(seed)
     np.random.seed(seed)
     model = build_model(name, hp).to(panel.device)
@@ -117,7 +121,7 @@ def train_model(name, panel, split, h, seed, cfg=None, hp=None, verbose=False):
         hist.append((epoch, tr / cfg.steps_per_epoch, v))
         if verbose:
             print(f"  ep {epoch:3d} train {tr / cfg.steps_per_epoch:.4f} val {v:.4f}  ({time.time() - t0:.0f}s)")
-        if cfg.top_k_avg > 1:
+        if cfg.top_k_avg > 1 and np.isfinite(v):
             top.append((v, copy.deepcopy(ema.state_dict())))
             top = sorted(top, key=lambda z: z[0])[: cfg.top_k_avg]
         if v < best - 1e-5:
@@ -126,6 +130,8 @@ def train_model(name, panel, split, h, seed, cfg=None, hp=None, verbose=False):
             wait += 1
             if wait >= cfg.patience and epoch + 1 >= cfg.min_epochs:
                 break
+    if best_state is None:
+        raise RuntimeError(f"{name}: no finite validation loss in {len(hist)} epochs (diverged)")
     if cfg.top_k_avg > 1:
         best_state = {k: sum(st[k] for _, st in top) / len(top) for k in best_state}
     model.load_state_dict(best_state)
@@ -179,7 +185,9 @@ def _refit(name, panel, split, h, seed, cfg, hp, gru_len, n_epochs):
 def predict_portfolios(model, name, panel, portfolios, t_idx, gru_len=22, chunk=8192, tta_k=0):
     """Forecasts s = log variance for every (origin, portfolio): array (len(t_idx), len(portfolios)); NaN if unsupported.
 
-    tta_k > 0 (experiment R3): average of the log-variance forecasts over tta_k random orderings of the constituents."""
+    tta_k > 0 (experiment R3): average of the log-variance forecasts over tta_k random orderings of the constituents.
+    The inputs are standardised with the scalers currently stored on `panel`, i.e. those of the last train_model call:
+    predict with a model before training the next one (as run_nn does)."""
     model.eval()
     dev = panel.device
     out = np.full((len(t_idx), len(portfolios)), np.nan, dtype=np.float32)

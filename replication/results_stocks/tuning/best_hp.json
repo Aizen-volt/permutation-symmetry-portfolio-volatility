@@ -1,0 +1,53 @@
+{
+ "PortMLP": {
+  "hidden": [
+   128,
+   128
+  ]
+ },
+ "MLP": {
+  "hidden": [
+   512,
+   256
+  ],
+  "dropout": 0.3
+ },
+ "MLP-sorted": {
+  "hidden": [
+   512,
+   256
+  ],
+  "dropout": 0.1
+ },
+ "GRU": {
+  "d_hidden": 128,
+  "dropout": 0.3
+ },
+ "DeepSets": {
+  "d": 64,
+  "phi": [
+   64
+  ],
+  "rho": [
+   64
+  ]
+ },
+ "PENet": {
+  "d": 32,
+  "n_layers": 2
+ },
+ "SetTransformer": {
+  "d": 64,
+  "n_layers": 1
+ },
+ "EQCov": {
+  "d": 64,
+  "n_layers": 2,
+  "k_emb": 16
+ },
+ "SetGRU": {
+  "d": 64,
+  "d_gru": 64,
+  "n_layers": 1
+ }
+}

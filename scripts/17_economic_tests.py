@@ -25,7 +25,7 @@ _spec = importlib.util.spec_from_file_location("vt", Path(__file__).with_name("1
 vt = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(vt)
 
-COV_MODELS = ["EWMA", "DCC", "DCCNL", "LW", "EWMANLS"]
+COV_MODELS = ["EWMA", "DCC", "DCCNL", "LW", "EWMANLS", "PCA-F"]
 
 
 def minvar_tests():

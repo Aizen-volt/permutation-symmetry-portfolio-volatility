@@ -1,0 +1,16 @@
+h,model,counterpart,seeds_a,seeds_b,share_lower
+1,DeepSets,MLP,10,10,1.0
+1,PENet,MLP,10,10,1.0
+1,SetTransformer,MLP,10,10,1.0
+1,SetGRU,GRU,10,10,1.0
+1,EQCov,MLP,10,10,1.0
+5,DeepSets,MLP,3,3,1.0
+5,PENet,MLP,3,3,1.0
+5,SetTransformer,MLP,3,3,1.0
+5,SetGRU,GRU,3,3,1.0
+5,EQCov,MLP,3,3,1.0
+22,DeepSets,MLP,3,3,0.0
+22,PENet,MLP,3,3,0.1111111111111111
+22,SetTransformer,MLP,3,3,0.5555555555555556
+22,SetGRU,GRU,3,3,0.5555555555555556
+22,EQCov,MLP,3,3,0.6666666666666666

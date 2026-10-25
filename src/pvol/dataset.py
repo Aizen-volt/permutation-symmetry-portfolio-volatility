@@ -36,7 +36,9 @@ def make_split(dates, first_valid, test_year, h, train_years=None):
     v0, v1 = year_bounds(dates, test_year - 1)
     start = first_valid + SEQ_MARGIN
     if train_years is not None:
-        start = max(start, year_bounds(dates, test_year - 1 - train_years)[0])
+        first_year = int(str(dates[0])[:4])
+        if test_year - 1 - train_years > first_year:  # otherwise the whole history is used
+            start = max(start, year_bounds(dates, test_year - 1 - train_years)[0])
     return Split(train=(start, v0 - 1 - h), val=(v0, v1 - h))
 
 

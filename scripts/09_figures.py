@@ -2,8 +2,8 @@
 
 Style: text set by LaTeX (usetex: STIX like the manuscript in the Elsevier CAS template, Type 1 fonts with correct text encoding); the
 same networks in the same Okabe-Ito colours in every figure (markers or line styles as secondary encoding); the best
-classical model of each panel as a black dashed line, named in the panel title; one legend below the figure; ETF and stock
-universe as the two rows of one figure.
+classical model of each panel as a black dashed line; lines labelled directly at their ends instead of a legend; panel
+titles (a), (b), ... aligned left; comparisons across networks as dot plots with the values printed at the right.
 Run once (it reads both universes).
 """
 import importlib.util
@@ -95,6 +95,20 @@ def panel_title(ax, u, h, b):
     ax.set_title(f"{u}, $h={h}$ (vs {lab(b)})", fontsize=8.5)
 
 
+def end_labels(ax, items, x, x_text, gap):
+    """Direct labels at the right end of lines: items = [(y, text, colour)] for lines ending at x; the labels are set at
+    x_text and moved apart vertically by at least gap (data units) so that they do not overlap."""
+    items = sorted(items)
+    ys = [y for y, *_ in items]
+    for i in range(1, len(ys)):
+        ys[i] = max(ys[i], ys[i - 1] + gap)
+    shift = (ys[-1] - items[-1][0]) / 2  # keep the block of labels centred on the line ends
+    for (y0, text, c), y in zip(items, ys):
+        ax.annotate(text, xy=(x, y0), xytext=(x_text, y - shift), textcoords="data", ha="left", va="center",
+                    fontsize=8.5, color=c, annotation_clip=False,
+                    arrowprops=dict(arrowstyle="-", color=c, lw=0.5, shrinkA=1, shrinkB=1, alpha=0.7))
+
+
 def bottom_legend(fig, axes, ncol=5):
     handles, labels = [], []
     for ax in np.ravel(axes):
@@ -128,16 +142,19 @@ def _levels(root):
 
 
 def fig_conditions():
-    """How much accuracy each network loses when the aids of the main design are removed (second and third series)."""
+    """How much accuracy each network loses when an aid of the main design is removed (second and third series): a dot
+    plot with one row per network, grouped into unconstrained and symmetric networks, and the values in two columns."""
+    U, S = "unconstrained networks", "symmetric networks"
     panels = [
-        ("Fixed pool of 50 training portfolios", "-P50",
-         [("MLP", "MLP", "MLP-P50"), ("MLP, shuffled order", "MLP", "MLP-P50s"), ("MLP-sorted", "MLP-sorted", "MLP-sorted-P50"),
-          ("Deep Sets", "DeepSets", "DeepSets-P50"), ("PE-Net", "PENet", "PENet-P50"),
-          ("Set Transformer", "SetTransformer", "SetTransformer-P50"), ("EQ-Cov", "EQCov", "EQCov-P50")]),
-        ("Raw inputs (no portfolio summaries)", "-RAW",
-         [("MLP", "MLP", "MLP-RAW"), ("MLP-sorted", "MLP-sorted", "MLP-sorted-RAW"), ("Deep Sets", "DeepSets", "DeepSets-RAW"),
-          ("Deep Sets + pairs", "DeepSetsP", "DeepSetsP-RAW"), ("PE-Net", "PENet", "PENet-RAW"),
-          ("Set Transformer", "SetTransformer", "SetTransformer-RAW")]),
+        ("(a) Fixed pool of 50 training portfolios",
+         [(U, "MLP", "MLP", "MLP-P50"), (U, "MLP, shuffled order", "MLP", "MLP-P50s"),
+          (U, "MLP-sorted", "MLP-sorted", "MLP-sorted-P50"), (S, "Deep Sets", "DeepSets", "DeepSets-P50"),
+          (S, "PE-Net", "PENet", "PENet-P50"), (S, "Set Transformer", "SetTransformer", "SetTransformer-P50"),
+          (S, "EQ-Cov", "EQCov", "EQCov-P50")]),
+        ("(b) Raw inputs, without portfolio-level summaries",
+         [(U, "MLP", "MLP", "MLP-RAW"), (U, "MLP-sorted", "MLP-sorted", "MLP-sorted-RAW"),
+          (S, "Deep Sets", "DeepSets", "DeepSets-RAW"), (S, "Deep Sets + pairs", "DeepSetsP", "DeepSetsP-RAW"),
+          (S, "PE-Net", "PENet", "PENet-RAW"), (S, "Set Transformer", "SetTransformer", "SetTransformer-RAW")]),
     ]
     lev = {u: _levels(root) for u, root in UNIVERSES}
     # the reference of every variant is the same network in the main design (MLP-sorted: its own main-design level)
@@ -145,61 +162,106 @@ def fig_conditions():
         d = pd.read_csv(root / "main" / "tables" / "losses_h5.csv")
         d = d[d.block == "in-range"]
         lev[u].update({m: v for m, v in zip(d.model, d.qlike_rel_ewma) if m not in lev[u]})
-    fig, axes = plt.subplots(1, 2, figsize=(TEXTWIDTH, 4.2), sharex=True)
-    for ax, (title, _, rows) in zip(axes, panels):
-        y = np.arange(len(rows))[::-1]
+    marker = {"ETF": "o", "Stock": "s"}
+    xlim, step = (-3.2, 9.2), 1.0  # step: vertical distance between rows
+    layouts = []
+    for title, rows in panels:  # y positions: a header line above each group, rows below it
+        y, ys, heads, last = 0.0, [], [], None
+        for g, *_ in rows:
+            if g != last:
+                y -= 0.35 if last is None else 0.75
+                heads.append((g, y))
+                y -= 0.85
+                last = g
+            ys.append(y)
+            y -= step
+        layouts.append((title, rows, ys, heads, y + step - 0.6))
+    heights = [-lo + 0.5 for *_, lo in layouts]
+    fig, axes = plt.subplots(2, 1, figsize=(TEXTWIDTH, 5.0), gridspec_kw=dict(height_ratios=heights, hspace=0.42))
+    for ax, (title, rows, ys, heads, lo) in zip(axes, layouts):
+        for g, yh in heads:
+            if g == U:  # light band behind the unconstrained networks
+                yb = [y_ for (g_, *_), y_ in zip(rows, ys) if g_ == U]
+                ax.axhspan(min(yb) - 0.5, max(yb) + 0.5, xmin=0, xmax=1, color="#f4f4f4", lw=0, zorder=0)
+            ax.text(xlim[0] - 0.02 * (xlim[1] - xlim[0]), yh, g, ha="right", va="center", fontsize=8.5, color=INK2,
+                    style="italic")
+        for (g, name, ref, var), y_ in zip(rows, ys):
+            v = {u: 100 * (lev[u].get(var, np.nan) - lev[u].get(ref, np.nan)) for u, _ in UNIVERSES}
+            close = abs(v["ETF"] - v["Stock"]) < 0.35  # nearly equal values: offset vertically so both stay visible
+            dy = {"ETF": 0.24 * close, "Stock": -0.24 * close}
+            ax.plot([v["ETF"], v["Stock"]], [y_ + dy["ETF"], y_ + dy["Stock"]], color="#c8c8c8", lw=2.2,
+                    solid_capstyle="round", zorder=2)
+            for u, _ in UNIVERSES:
+                ax.plot(v[u], y_ + dy[u], marker=marker[u], ms=7 if u == "ETF" else 6.4, color=UCOL[u], mec="white", mew=1.0,
+                        ls="none", zorder=3)
+            for k, (u, _) in enumerate(UNIVERSES):  # value columns at the right
+                ax.text(1.06 + 0.1 * k, y_, f"${v[u]:+.1f}$", transform=ax.get_yaxis_transform(), ha="right",
+                        va="center", fontsize=9, color=INK)
         for k, (u, _) in enumerate(UNIVERSES):
-            vals = [100 * (lev[u].get(var, np.nan) - lev[u].get(ref, np.nan)) for _, ref, var in rows]
-            yy = y + (0.18 if k == 0 else -0.18)
-            ax.barh(yy, vals, height=0.32, color=UCOL[u], label=u, zorder=3)
-            for yi, v in zip(yy, vals):
-                if v == v:
-                    ax.text(v + (0.25 if v >= 0 else -0.25), yi, f"${v:.1f}$" if v < 0 else f"$+{v:.1f}$",
-                            va="center", ha="left" if v >= 0 else "right", fontsize=8.5, color=INK2)
-        ax.set_yticks(y)
-        ax.set_yticklabels([r[0] for r in rows])
-        ax.axvline(0, color=INK, lw=0.8, zorder=4)
-        ax.set_title(title)
+            ax.text(1.06 + 0.1 * k, heads[0][1], u if u == "ETF" else "Stocks", transform=ax.get_yaxis_transform(),
+                    ha="right", va="center", fontsize=8.5, color=UCOL[u])
+        ax.set_yticks(ys)
+        ax.set_yticklabels([r[1] for r in rows])
+        ax.tick_params(axis="y", length=0, pad=6, labelsize=9.5, labelcolor=INK)
+        ax.set_ylim(lo, 0.2)
+        ax.set_xlim(*xlim)
+        ax.set_xticks(range(-2, 10, 2))
+        ax.axvline(0, color=INK, lw=0.9, zorder=1)
         ax.grid(axis="y", visible=False)
-        ax.tick_params(axis="y", length=0)
-    axes[0].set_xlim(-5, 10)
-    for ax in axes:
-        ax.set_xlabel("change in QLIKE (points of EWMA)")
-    fig.tight_layout(rect=(0, 0, 1, 0.9), w_pad=2.0)
-    h_, l_ = axes[0].get_legend_handles_labels()
-    fig.legend(h_, [f"{x} universe" for x in l_], loc="upper center", ncol=2, bbox_to_anchor=(0.5, 1.0))
+        ax.spines["left"].set_visible(False)
+        ax.set_title(title, loc="left", fontsize=10, color=INK, pad=4)
+    axes[1].set_xlabel("change in QLIKE when the aid is removed (percentage points of the EWMA loss)")
+    axes[1].annotate("", xy=(xlim[0] + 0.15, -0.16), xytext=(-0.25, -0.16), xycoords=("data", "axes fraction"),
+                     arrowprops=dict(arrowstyle="-|>", color=INK2, lw=0.7, shrinkA=0, shrinkB=0))
+    axes[1].text(-0.35, -0.21, "more accurate", transform=axes[1].get_xaxis_transform(), ha="right", va="top",
+                 fontsize=8.5, color=INK2)
+    axes[1].annotate("", xy=(xlim[1] - 0.15, -0.16), xytext=(0.25, -0.16), xycoords=("data", "axes fraction"),
+                     arrowprops=dict(arrowstyle="-|>", color=INK2, lw=0.7, shrinkA=0, shrinkB=0))
+    axes[1].text(0.35, -0.21, "less accurate", transform=axes[1].get_xaxis_transform(), ha="left", va="top",
+                 fontsize=8.5, color=INK2)
+    axes[1].xaxis.labelpad = 22
+    handles = [plt.Line2D([], [], marker=marker[u], ms=7, color=UCOL[u], mec="white", mew=1.0, ls="none")
+               for u, _ in UNIVERSES]
+    fig.legend(handles, ["ETF universe", "Stock universe"], loc="upper center", ncol=2, bbox_to_anchor=(0.5, 1.0),
+               handletextpad=0.3, columnspacing=2.0)
     save(fig, "conditions")
 
 
 def fig_by_size():
-    """h=5: accuracy by the number of constituents, both universes (two large panels)."""
+    """h=5: accuracy by the number of constituents, both universes (two large panels, lines labelled at their ends)."""
     groups = {"N5": 5, "N10": 10, "N20": 20, "N30": 30, "N40": 40}
-    fig, axes = plt.subplots(1, 2, figsize=(TEXTWIDTH, 2.9))
-    for ax, (u, root) in zip(axes, UNIVERSES):
+    fig, axes = plt.subplots(1, 2, figsize=(TEXTWIDTH, 3.0))
+    for k, (ax, (u, root)) in enumerate(zip(axes, UNIVERSES)):
         n_all = 54 if u == "ETF" else 122
         g = dict(groups, **{"EW-all": n_all})
         d = pd.read_csv(root / "main" / "tables" / "losses_h5.csv")
         d = d[d.block.isin(g)].assign(N=lambda x: x.block.map(g))
+        labels = []
         for m in HIGHLIGHT:
             s_ = d[d.model == m].sort_values("N")
             model_line(ax, s_.N.to_numpy(), s_.qlike_rel_ewma.to_numpy(), m)
+            labels.append((s_.qlike_rel_ewma.iloc[-1], lab(m), COLOR[m], s_.N.iloc[-1]))
         b = best_classical(root, 5)
         s_ = d[d.model == b].sort_values("N")
         bench_line(ax, s_.N.to_numpy(), s_.qlike_rel_ewma.to_numpy(), b)
+        labels.append((s_.qlike_rel_ewma.iloc[-1], lab(b), INK, s_.N.iloc[-1]))
+        lo, hi = ax.get_ylim()
+        for x_end in sorted({x for *_, x in labels}):  # the MLP ends at N = 20 (20 slots)
+            end_labels(ax, [(y, t, c) for y, t, c, x in labels if x == x_end], x_end, x_end * 1.12, 0.055 * (hi - lo))
         ax.axvspan(24, n_all * 1.15, color=SHADE, zorder=0, lw=0)
-        ax.text(np.sqrt(24 * n_all * 1.15), ax.get_ylim()[1], "never seen\nin training", ha="center", va="top",
-                fontsize=8, color=INK2)
+        ax.text(np.sqrt(24 * n_all * 1.15), hi, "never seen\nin training", ha="center", va="top", fontsize=8,
+                color=INK2)
+        ax.set_ylim(lo, hi)
         ax.set_xscale("log")
         ticks = [5, 10, 20, 40, n_all]
         ax.set_xticks(ticks)
         ax.set_xticklabels([str(v) for v in ticks])
         ax.minorticks_off()
         ax.set_xlim(4.3, n_all * 1.15)
-        ax.set_title(f"{u} universe (best classical: {lab(b)})")
+        ax.set_title(f"({'ab'[k]}) {u} universe", loc="left")
         ax.set_xlabel("number of constituents $N$")
     axes[0].set_ylabel("QLIKE relative to EWMA")
-    fig.tight_layout(rect=(0, 0.08, 1, 1), w_pad=2.0)
-    bottom_legend(fig, axes)
+    fig.tight_layout(w_pad=6.0)
     save(fig, "by_size")
 
 
@@ -208,11 +270,12 @@ EPISODES = [("2020-02-20", "2020-05-29"), ("2025-03-31", "2025-05-30")]  # COVID
 
 def fig_cumdiff():
     """Cumulative sum of the daily in-range QLIKE differential, network average minus the best classical model of the
-    horizon, one panel per horizon and one line per universe."""
+    horizon, one panel per horizon and one line per universe (labelled at its end); stress episodes shaded."""
     import pvol.data as pdata
     from pvol.data import load_panel
 
     fig, axes = plt.subplots(1, 3, figsize=(TEXTWIDTH, 2.9), sharex=True)
+    ends = {h: [] for h in HORIZONS}
     for u, root in UNIVERSES:
         old = pdata.PROCESSED
         pdata.PROCESSED = ROOT / "data" / ("processed" if u == "ETF" else "processed_stocks")
@@ -224,19 +287,21 @@ def fig_cumdiff():
             b = best_classical(root, h)
             lb = np.nanmean(qlike(R["y"], R["F"][b])[:, ci], 1)
             ln = np.mean([np.nanmean(qlike(R["y"], R["F"][m])[:, ci], 1) for m in NETS], 0)
-            ax.plot(dates[R["origins"]], np.cumsum(ln - lb), color=UCOL[u], lw=1.4,
-                    ls="-" if u == "ETF" else (0, (5, 1.5)))
-    for ax, h in zip(axes, HORIZONS):
+            x, y = dates[R["origins"]], np.cumsum(ln - lb)
+            ax.plot(x, y, color=UCOL[u], lw=1.4, ls="-" if u == "ETF" else (0, (5, 1.5)))
+            ends[h].append((y[-1], "ETF" if u == "ETF" else "Stocks", UCOL[u], x[-1]))
+    for k, (ax, h) in enumerate(zip(axes, HORIZONS)):
         for s_, e in EPISODES:
             ax.axvspan(pd.Timestamp(s_), pd.Timestamp(e), color=SHADE, zorder=0, lw=0)
         ax.axhline(0.0, color=AXIS, lw=0.7, zorder=1)
-        ax.set_title(f"$h={h}$")
+        ax.set_title(f"({'abc'[k]}) $h={h}$", loc="left")
         ax.xaxis.set_major_locator(mdates.YearLocator(2))
         ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
-    axes[0].set_ylabel("cumulative QLIKE difference\n(absolute QLIKE)")
-    handles = [plt.Line2D([], [], color=UCOL["ETF"], lw=1.4), plt.Line2D([], [], color=UCOL["Stock"], lw=1.4, ls=(0, (5, 1.5)))]
-    fig.tight_layout(rect=(0, 0.09, 1, 1), w_pad=1.5)
-    fig.legend(handles, ["ETF universe", "Stock universe"], loc="lower center", ncol=2, bbox_to_anchor=(0.5, -0.01))
+        lo, hi = ax.get_ylim()
+        x_end = max(x for *_, x in ends[h])
+        end_labels(ax, [(y, t, c) for y, t, c, _ in ends[h]], x_end, x_end + pd.Timedelta(days=60), 0.09 * (hi - lo))
+    axes[0].set_ylabel("cumulative QLIKE difference\n(networks minus best classical)")
+    fig.tight_layout(w_pad=3.2)
     save(fig, "cumdiff")
 
 

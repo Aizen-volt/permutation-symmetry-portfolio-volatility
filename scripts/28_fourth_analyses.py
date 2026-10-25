@@ -1,7 +1,7 @@
 """Fourth series: robustness analyses from saved forecasts (descriptive, no decision rules).
 
 - losses_variants.csv: in-range loss relative to EWMA under QLIKE, Patton's b = -1 loss and MSE, and QLIKE excluding 2020;
-- hypotheses_ex2020.csv: H1 and H2 (decision rule of the paper) on the test origins outside 2020;
+- hypotheses_excl_year.csv: H1 and H2 (decision rule of the paper) on the test origins outside 2020 and outside 2026;
 - gw.csv: conditional Giacomini-White test (instruments 1 and the lagged differential) for H1 and H2, Holm per family;
 - seed_signs.csv: share of (seed of the symmetric network, seed of the counterpart) pairs in which the symmetric network
   has the lower in-range mean QLIKE (stock universe at h = 1: seeds 0-9, seeds 3-9 from the fourth series S2);
@@ -75,17 +75,21 @@ if __name__ == "__main__":
             for m in models:
                 lv.append(dict(loss=name, h=h, model=m, rel_ewma=np.nanmean(fn(y[rows], F[m][rows])[:, ci]) / e))
         L = {m: qlike(y, F[m]) for m in models}
-        # H1 / H2 outside 2020 (best classical chosen ex post on that sample)
-        for fam, pairs in (("H1", [(a, CP[a]) for a in SYM]),
-                           ("H2", [(a, min([m for m in CLASSICAL if m in L],
-                                           key=lambda m: np.nanmean(L[m][ex][:, ci]))) for a in SYM])):
-            rows = []
-            for a, b in pairs:
-                d = daily_loss(L[a], ci)[ex] - daily_loss(L[b], ci)[ex]
-                st, p = dm_test(d, h)
-                rows.append(dict(hypothesis=fam, h=h, block="in-range, excl. 2020", model=a, benchmark=b, mean_diff=d.mean(),
-                                 dm=st, p=p))
-            h12 += hyp.family(rows)
+        # H1 / H2 outside 2020 (the crisis year) and outside 2026 (the incomplete year); best classical chosen ex post
+        # on that sample
+        for yr in (2020, 2026):
+            keep = ~(dates[R["origins"]].year == yr)
+            for fam, pairs in (("H1", [(a, CP[a]) for a in SYM]),
+                               ("H2", [(a, min([m for m in CLASSICAL if m in L],
+                                               key=lambda m: np.nanmean(L[m][keep][:, ci]))) for a in SYM])):
+                rows = []
+                for a, b in pairs:
+                    d = daily_loss(L[a], ci)[keep] - daily_loss(L[b], ci)[keep]
+                    st, p = dm_test(d, h)
+                    rows.append(dict(hypothesis=fam, h=h, block=f"in-range, excl. {yr}", model=a, benchmark=b,
+                                     mean_diff=d.mean(), dm=st, p=p))
+                h12 += hyp.family(rows)
+        for fam, pairs in (("H1", [(a, CP[a]) for a in SYM]), ("H2", None)):
             grow = []
             for a, b in pairs if fam == "H1" else [(a, min([m for m in CLASSICAL if m in L],
                                                           key=lambda m: np.nanmean(L[m][:, ci]))) for a in SYM]:
@@ -128,7 +132,7 @@ if __name__ == "__main__":
                         var.append(dict(model=m, alpha=alpha, kind=kind, hit_rate=hits.mean(),
                                         kupiec_reject_share=np.mean(stats.chi2.sf(lr, 1) < 0.05)))
         print(f"h={h} done", flush=True)
-    for name, rows in (("losses_variants", lv), ("hypotheses_ex2020", h12), ("gw", gw), ("seed_signs", signs),
+    for name, rows in (("losses_variants", lv), ("hypotheses_excl_year", h12), ("gw", gw), ("seed_signs", signs),
                        ("var_t_fhs", var)):
         pd.DataFrame(rows).to_csv(OUT / f"{name}.csv", index=False)
     print("done")

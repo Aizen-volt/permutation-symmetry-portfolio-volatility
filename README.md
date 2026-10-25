@@ -31,7 +31,19 @@ The universe is chosen by the environment variable `PVOL_UNIVERSE`:
 
 The sample runs from 2007-12-19 to 2026-09-18 (`src/pvol/config.py`); the test years are 2020-2026. Yahoo Finance
 revises adjusted prices after dividends and splits, so a later download can differ slightly from the one used in the
-paper. The price files are not redistributed because of the provider's terms of use.
+paper. The price files are not redistributed because of the provider's terms of use. The snapshot used in the paper
+was downloaded on 2026-09-21; its SHA-256 checksums are:
+
+```
+8c8af11acaa49e9c10ab35155d9d9c0e366676031ff62590e966e70e76491aca  data/raw/ohlcv_adjusted.parquet
+2e40d6c8bc2ca99dfda49ce9455493ffafe41832cdb7b61f566591d89c866d53  data/raw_stocks/ohlcv_adjusted.parquet
+c1016bac854a0eb7810a76155564b837efeb0b56eeefb94c900c255fe4cd48b2  data/processed/panel.npz
+e4d50d89cdf83ec38ce90de37617b2322e4555371907c550b0c5ffa98d625634  data/processed_stocks/panel.npz
+b20fc3c3445ca0d51accb63dec8b30a33b1f4dcad4aa521a5ea8e0b5bf9bee52  data/processed_stocks54/panel.npz
+```
+
+The result tables in `replication/`, from which the tables and figures of the paper are built, do not depend on a new
+download.
 
 ## Scripts
 
@@ -41,7 +53,7 @@ Data, tuning and benchmarks
 |---|---|
 | `01_download.py` | daily adjusted OHLCV from Yahoo Finance |
 | `02_build_panel.py` | returns, variance proxies, asset features, correlations, EWMA covariance (`panel.npz`) |
-| `03_tune.py` | hyper-parameter selection on a fold before the test period (four configurations per network) |
+| `03_tune.py` | hyper-parameter selection on a fold before the test period (four configurations per network; `--h`, `--tag` repeat the search at another horizon) |
 | `04_baselines.py`, `04b_harx.py`, `04c_shrinkage.py` | targets and classical benchmarks: HIST, EWMA, HAR, HAR-X, GARCH, GJR-GARCH, DCC, Ledoit-Wolf, nonlinear shrinkage, DCC-NL |
 | `26_benchmarks_ext.py` | HAR-WLS, LogHAR-X, HEAVY and a PCA factor correlation model |
 | `27_gbm.py` | gradient-boosting benchmark on the features of the linear set model |
@@ -53,15 +65,13 @@ Experiments (forecasts in `results*/<experiment>/h<h>/preds/<tag>__s<seed>.npy`)
 |---|---|---|
 | `05_train.py` | main design (`--exp main`) and assets never seen in training (`--exp heldout`) | model names |
 | `08_ablation_datasize.py` | shortened training histories | `-K2`, `-K4` |
-| `14_robust_protocol.py` | alternative training protocol (ETF) | `-P2` |
+| `14_robust_protocol.py` | alternative training protocol (ETF at h = 5, stocks at h = 1) | `-P2` |
 | `18_extra_experiments.py` | second series: raw inputs, fixed portfolio pools, portfolios of up to 54 assets | `-RAW`, `-P50`, `-P500`, `-N54` |
 | `23_third_series.py` | third series: fixed pools with random orderings, sorted inputs, averaging over orderings, Deep Sets with pair summaries, 54-stock subsample | `-P50s`, `-P500s`, `MLP-sorted-*`, `-TTA`, `DeepSetsP*` |
-| `25_fourth_series.py` | fourth series: linear set model, seeds 3-9 at h = 1 | `Linear`, seeds 3-9 |
+| `25_fourth_series.py` | fourth series: linear set model, seeds 3-9 at h = 1; `S3`: refit on training + validation data | `Linear`, seeds 3-9, `-RF` |
 | `13_minvar.py` | minimum-variance portfolios built with each model | |
 | `11_eqcov_diagnostics.py` | correlation weights and volatility adjustments of EQ-Cov | |
 | `16_validation_diagnostic_h22.py` | diagnostic on the tuning fold at h = 22 | |
-
-`25_fourth_series.py S3` (a refit protocol) is implemented but not reported in the paper.
 
 Evaluation and tests (tables in `results*/<experiment>/tables/`)
 
@@ -69,10 +79,15 @@ Evaluation and tests (tables in `results*/<experiment>/tables/`)
 |---|---|
 | `06_evaluate.py` | losses by portfolio block, Diebold-Mariano tests, model confidence set, Mincer-Zarnowitz, permutation consistency, value-at-risk, losses per year and per seed |
 | `12_vol_targeting.py`, `17_economic_tests.py` | volatility targeting and the tests of the economic evaluation |
-| `15_hypotheses.py` | hypotheses H1-H4 (`--ext` adds the benchmarks of `26_benchmarks_ext.py`, `--suffix=-P2` the alternative protocol) |
+| `15_hypotheses.py` | hypotheses H1-H4 (`--ext` adds the benchmarks of `26_benchmarks_ext.py`, `--suffix=-P2` / `-RF` the alternative protocols) |
 | `19_extra_hypotheses.py`, `24_third_hypotheses.py`, `29_fourth_hypotheses.py` | hypotheses of the second, third and fourth series |
-| `28_fourth_analyses.py` | robustness: Patton loss, test sample without 2020, Giacomini-White test, agreement of seeds, value-at-risk with Student-t and filtered historical simulation |
+| `28_fourth_analyses.py` | robustness: Patton loss, test samples without 2020 and without 2026, Giacomini-White test, agreement of seeds, value-at-risk with Student-t and filtered historical simulation |
 | `22_compute_cost.py` | parameters, training and forecast time |
+| `31_determinism.py` | retrains three networks twice and compares with the stored forecasts (`determinism.csv`) |
+| `32_precision_multiplicity.py` | confidence intervals and detectable effects of every comparison; Holm and Benjamini-Hochberg over all comparisons |
+| `33_data_crosscheck.py` | prices against a second source (Nasdaq, unadjusted) |
+| `34_tuning_check.py` | hyper-parameters in use against the search repeated at other horizons and on the stocks |
+| `35_refit_summary.py` | accuracy of the networks under the main, B and refit protocols; Linear against the symmetric networks under each |
 
 Every hypothesis is decided by the same rule: model a is more accurate than model b if its mean QLIKE is lower and the
 Diebold-Mariano test with the Harvey-Leybourne-Newbold correction rejects at 5% after a Holm correction within the
@@ -86,6 +101,13 @@ Tables and figures (read both universes, run once)
 | `09_figures.py` | PDF figures in `paper/figures/` (needs a LaTeX installation, the figures use `usetex`) |
 
 No number in the tables is typed by hand: every table is generated from the CSV files above.
+
+`scripts/collect_results.sh` copies the result tables, tuning logs and descriptive statistics (everything except the
+forecasts) to `replication/`, which is under version control.
+
+Training is deterministic on a given GPU and software stack: retraining with the same seed reproduces the stored
+forecasts to within 1e-6 (`31_determinism.py`); other hardware or library versions can give slightly different
+forecasts.
 
 ## Code
 - `src/pvol/config.py`: paths, sample, horizons, test years

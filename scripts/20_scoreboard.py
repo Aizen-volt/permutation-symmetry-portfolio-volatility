@@ -51,7 +51,7 @@ ROWS = [
     *[(f"H2: symmetric vs best classical, $h={h}$", "hypotheses.csv", dict(hypothesis="H2", h=h, block="in-range"))
       for h in (1, 5, 22)],
 ]
-# Supplementary Material: the families moved out of the main text
+# secondary families (robustness section of the article)
 ROWS_SUPP = [
     *[(f"H2 (ten original classical models), $h={h}$", "hypotheses_h2orig.csv",
        dict(hypothesis="H2", h=h, block="in-range")) for h in (1, 5, 22)],
@@ -75,7 +75,7 @@ IN_RANGE = ["N5", "N10", "N20", "N10-conc", "N10-EW"]
 
 
 def ewma_loss(root, h, _cache={}):
-    """Mean in-range QLIKE of EWMA (the unit of the effect sizes: one percentage point of EWMA = 0.01 of it)."""
+    """Mean in-range QLIKE of EWMA (the unit of the effect sizes: one percentage point of the EWMA loss = 0.01 of it)."""
     key = (str(root), h)
     if key not in _cache:
         d = root / "main" / f"h{h}"
@@ -92,18 +92,19 @@ def ewma_loss(root, h, _cache={}):
 
 
 def cell(root, fname, flt):
-    """(verdict count, effect range): effect = mean daily loss differential (first model minus second) in percentage
-    points of the in-range EWMA loss; negative favours the symmetric network. Economic comparisons: no effect size."""
+    """(verdict count, effect range, range of Holm-adjusted p-values): effect = mean daily loss differential (first model
+    minus second) in percentage points of the in-range EWMA loss; negative favours the symmetric network. Economic
+    comparisons: no effect size."""
     f = root / "main" / "tables" / fname
     if not f.exists():
-        return "--", ""
+        return "--", "", ""
     d = pd.read_csv(f)
     for k, v in flt.items():
         if k not in d.columns:
-            return "--", ""
+            return "--", "", ""
         d = d[d[k] == v]
     if not len(d):
-        return "--", ""
+        return "--", "", ""
     good = (d.verdict == "more accurate").sum()
     bad = (d.verdict == "less accurate").sum()
     count = f"{good}/{len(d)}" + (f" ($-${bad})" if bad else "")
@@ -116,34 +117,44 @@ def cell(root, fname, flt):
             lo, hi = v.min(), v.max()
             fmt = lambda x: f"${x:.1f}$".replace("$-", "$-")
             eff = fmt(lo) if abs(hi - lo) < 0.05 else f"{fmt(lo)} to {fmt(hi)}"
-    return count, eff
+    pv = ""
+    if "p_holm" in d.columns:
+        fp = lambda x: "$<$0.001" if x < 0.001 else f"{x:.3f}"
+        lo, hi = d.p_holm.min(), d.p_holm.max()
+        pv = fp(lo) if fp(lo) == fp(hi) else f"{fp(lo)}--{fp(hi)}"
+    return count, eff, pv
 
 
 def write(rows, name, label, caption):
-    L = ["\\begin{table}[t]\\centering\\small",
+    L = ["\\begin{table}[t]\\centering\\footnotesize\\setlength{\\tabcolsep}{4pt}",
          "\\caption{" + caption + " Each cell reports how many of the tested comparisons of the family are decided in favour "
          "of the symmetry-respecting network (QLIKE lower and the Diebold--Mariano test significant at 5\\% after the Holm "
          "correction), out of the comparisons tested; $-k$ marks $k$ comparisons decided significantly against it. `--' "
          "means the family was not run for that universe; R5 and the S2 repetition of R5 are run on a subsample of 54 "
          "stocks and reported in the stock column. Effect: range over the comparisons of the mean daily QLIKE "
          "differential (first model minus second), in percentage points of the in-range EWMA loss; negative values "
-         "favour the symmetric network (for the difference-in-differences families and H3a, H4: the stated condition). "
-         "No effect size for the economic comparisons." + ("" if name != "scoreboard" else " $^{a}$Comparisons in which the "
+         "favour the symmetric network"
+         + (" (for the difference-in-differences families: the stated condition)." if name == "scoreboard" else
+            " (for the difference-in-differences families and H3a, H4: the stated condition). No effect size for the "
+            "economic comparisons.")
+         + " $p_{\\text{Holm}}$: range of the Holm-adjusted $p$-values of the comparisons of the family."
+         + ("" if name != "scoreboard" else " $^{a}$Comparisons in which the "
          "counterpart trained on the pool in random orders is more accurate than the same network in a fixed order (MLP "
          "and GRU, pools of 50 and 500).") + "}\\label{" + label + "}",
-         "\\begin{tabular}{lcrcr}\\toprule",
-         " & " + " & ".join(f"\\multicolumn{{2}}{{c}}{{{u}}}" for u, _ in UNIVERSES) + "\\\\",
-         "\\cmidrule(lr){2-3}\\cmidrule(lr){4-5}",
-         "Hypothesis & " + " & ".join("verdict & effect (pp)" for _ in UNIVERSES) + "\\\\ \\midrule"]
+         "\\begin{tabular}{lcrrcrr}\\toprule",
+         " & " + " & ".join(f"\\multicolumn{{3}}{{c}}{{{u}}}" for u, _ in UNIVERSES) + "\\\\",
+         "\\cmidrule(lr){2-4}\\cmidrule(lr){5-7}",
+         "Hypothesis & " + " & ".join("verdict & effect (pp) & $p_{\\text{Holm}}$" for _ in UNIVERSES)
+         + "\\\\ \\midrule"]
     for i, (lbl, fname, flt, *alt) in enumerate(rows):
         if fname is None:
-            L += ([] if i == 0 else ["\\midrule"]) + [f"\\multicolumn{{5}}{{l}}{{\\emph{{{lbl}}}}}\\\\"]
+            L += ([] if i == 0 else ["\\midrule"]) + [f"\\multicolumn{{7}}{{l}}{{\\emph{{{lbl}}}}}\\\\"]
             continue
         roots = [root for _, root in UNIVERSES]
         if alt:  # run on a sub-universe only (R5): no ETF cell, stock cell from that directory
             roots = [None, Path(str(BASE) + alt[0])]
-        cells = [cell(r, fname, flt) if r else ("--", "") for r in roots]
-        L.append(f"{lbl} & " + " & ".join(f"{c} & {e}" for c, e in cells) + "\\\\")
+        cells = [cell(r, fname, flt) if r else ("--", "", "") for r in roots]
+        L.append(f"{lbl} & " + " & ".join(f"{c} & {e} & {p}" for c, e, p in cells) + "\\\\")
     L += ["\\bottomrule\\end{tabular}", "\\end{table}"]
     (OUT / f"{name}.tex").write_text("\n".join(L), encoding="utf-8")
     print("\n".join(L[4:-2]))
@@ -155,4 +166,4 @@ if __name__ == "__main__":
           "second series (HE) was specified before it was run, the third (R) and fourth (S) series are exploratory "
           "(Section~\\ref{sec:hypotheses}). H2: best of the fourteen classical models.")
     write(ROWS_SUPP, "scoreboard_supp", "tab:scoreboard_supp",
-          "Verdicts of the families reported in the Supplementary Material, both universes.")
+          "Verdicts of the secondary families, both universes.")

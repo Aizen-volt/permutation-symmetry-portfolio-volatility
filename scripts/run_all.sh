@@ -40,13 +40,25 @@ universe() {  # $1 = etf | stocks, $2 = horizons of the held-out-assets experime
 }
 
 universe etf "5 1 22" 2>&1 | tee logs/etf.log
-# ETF universe only: alternative training protocol, EQ-Cov diagnostics, validation diagnostic at h = 22
-PVOL_UNIVERSE=etf $PY scripts/14_robust_protocol.py
-PVOL_UNIVERSE=etf $PY scripts/15_hypotheses.py main --suffix=-P2
+# alternative training protocol and refit protocol (ETF: protocol B at h = 5; stocks: at h = 1), retuning checks
+PVOL_UNIVERSE=etf $PY scripts/14_robust_protocol.py 5
+PVOL_UNIVERSE=etf $PY scripts/25_fourth_series.py S3
+PVOL_UNIVERSE=etf $PY scripts/15_hypotheses.py main --ext --suffix=-P2
+PVOL_UNIVERSE=etf $PY scripts/15_hypotheses.py main --ext --suffix=-RF
+PVOL_UNIVERSE=etf $PY scripts/03_tune.py --h 1 --tag h1
+PVOL_UNIVERSE=etf $PY scripts/03_tune.py --h 22 --tag h22
+PVOL_UNIVERSE=etf $PY scripts/31_determinism.py
+# ETF universe only: EQ-Cov diagnostics, validation diagnostic at h = 22
 PVOL_UNIVERSE=etf $PY scripts/11_eqcov_diagnostics.py
 PVOL_UNIVERSE=etf $PY scripts/16_validation_diagnostic_h22.py
 
 universe stocks 5 2>&1 | tee logs/stocks.log
+PVOL_UNIVERSE=stocks $PY scripts/14_robust_protocol.py 1
+PVOL_UNIVERSE=stocks $PY scripts/25_fourth_series.py S3
+PVOL_UNIVERSE=stocks $PY scripts/15_hypotheses.py main --ext --suffix=-P2
+PVOL_UNIVERSE=stocks $PY scripts/15_hypotheses.py main --ext --suffix=-RF
+PVOL_UNIVERSE=stocks $PY scripts/03_tune.py --h 5 --tag h5
+PVOL_UNIVERSE=stocks $PY scripts/03_tune.py --h 1 --tag h1
 
 # 54-stock subsample (R5 and its seeds 3-9); prices are read from the stock universe
 export PVOL_UNIVERSE=stocks54
@@ -59,9 +71,18 @@ $PY scripts/24_third_hypotheses.py
 $PY scripts/29_fourth_hypotheses.py
 unset PVOL_UNIVERSE
 
+# checks over both universes: second data source, precision and global multiplicity, retuning
+PVOL_UNIVERSE=etf $PY scripts/33_data_crosscheck.py
+PVOL_UNIVERSE=stocks $PY scripts/33_data_crosscheck.py
+$PY scripts/32_precision_multiplicity.py
+$PY scripts/34_tuning_check.py
+PVOL_UNIVERSE=etf $PY scripts/35_refit_summary.py
+PVOL_UNIVERSE=stocks $PY scripts/35_refit_summary.py
+
 # tables and figures for both universes
 $PY scripts/10_tables_tex.py
 $PY scripts/20_scoreboard.py
 $PY scripts/21_hypothesis_tables.py
 $PY scripts/30_fourth_tables.py
 $PY scripts/09_figures.py
+bash scripts/collect_results.sh

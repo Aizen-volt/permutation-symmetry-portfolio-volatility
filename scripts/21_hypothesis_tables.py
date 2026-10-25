@@ -6,6 +6,7 @@ hyp_other.tex     H3a-H3c and H4
 hyp_econ.tex      minimum variance and volatility targeting
 hyp_review*.tex   third series (R1-R4)
 hyp_extra.tex     HE1-HE3
+hyp_fourth*.tex   fourth series (S1b, S2) and H2 against the ten classical models of the original design
 extra_levels.tex  QLIKE relative to EWMA of the networks under the training conditions of E1-E3
 """
 import sys
@@ -65,10 +66,15 @@ def fmt_p(r):
     return p
 
 
-def family_rows(title, fname, flt, versus):
-    """One block of rows: pair label, then DM statistic and Holm p-value in each universe."""
+def family_rows(title, fname, flt, versus, roots=None):
+    """One block of rows: pair label, then DM statistic and Holm p-value in each universe (roots overrides the
+    results directory of a universe and leaves the others empty)."""
     cells, bench = {}, {}
     for u, root in UNIVERSES:
+        if roots is not None:
+            if u not in roots:
+                continue
+            root = roots[u]
         d = select(load(root, fname), flt)
         for _, r in d.iterrows():
             b = r.benchmark if versus == "benchmark" and isinstance(r.get("benchmark"), str) else counterpart(r.model)
@@ -80,7 +86,7 @@ def family_rows(title, fname, flt, versus):
             cells.setdefault(key, {})[u] = (f"${r.dm:.2f}$", fmt_p(r))
     if not cells:
         return []
-    if bench:
+    if bench and " vs " not in title:  # a title with "vs" already names the benchmark
         title += " (benchmark: " + " / ".join(bench.get(u, "--") for u, _ in UNIVERSES) + ")"
     L = [f"\\multicolumn{{5}}{{l}}{{\\emph{{{title}}}}}\\\\"]
     for key, v in cells.items():
@@ -151,7 +157,9 @@ def economic_table():
         vt = pd.read_csv(t / "vol_targeting.csv")
         vt = vt[vt.block == "in-range"].set_index(["model", "h"]).rmse_log_monthly
         cols[u] = (vol, hhi, vt)
-    models = [m for m in CLASSICAL + NEURAL if any(m in vt.index.get_level_values(0) for _, _, vt in cols.values())]
+    skip = {"HAR-WLS", "GBM", "PortMLP", "MLP-sorted"}  # not discussed in the economic evaluation; kept in the CSV files
+    models = [m for m in CLASSICAL + NEURAL if m not in skip
+              and any(m in vt.index.get_level_values(0) for _, _, vt in cols.values())]
 
     def best(values):  # bold the lowest value of a column
         v = [x for x in values if x is not None]
@@ -168,7 +176,8 @@ def economic_table():
          "their average Herfindahl index of weights (HHI). Volatility targeting: root mean squared log deviation of "
          "monthly realised volatility from the target, in-range portfolios, rebalanced every $h$ days. Lower is better "
          "everywhere except HHI; bold: best in the column. Models absent from the minimum-variance experiment (univariate "
-         "per-portfolio models) are marked `--'.}\\label{tab:economic}",
+         "per-portfolio models) are marked `--'; HAR-WLS, GBM, PortMLP and MLP-sorted are in the replication package.}"
+         "\\label{tab:economic}",
          "\\begin{tabular}{lrrrrrrrrrr}\\toprule",
          " & " + " & ".join(f"\\multicolumn{{5}}{{c}}{{{u}}}" for u, _ in UNIVERSES) + "\\\\",
          "\\cmidrule(lr){2-6}\\cmidrule(lr){7-11}",
@@ -288,7 +297,7 @@ def supplementary_tables():
 
     _both_universes_table("seeds", "tab:seeds",
                           "Dispersion across the three training seeds: standard deviation of the QLIKE relative to EWMA of "
-                          "the individual seeds, in percentage points of EWMA (in-range portfolios). The evaluated forecast "
+                          "the individual seeds, in percentage points of the EWMA loss (in-range portfolios). The evaluated forecast "
                           "is the ensemble of the seeds.", seed_sd, NETS[1:], fmt="{:.2f}")
 
     tail_table(["EWMA"] + models)
@@ -344,7 +353,7 @@ def protocol_table():
     L = ["\\begin{table}[t]\\centering\\footnotesize\\setlength{\\tabcolsep}{5pt}",
          "\\caption{Alternative training protocol (at least five epochs, patience 15, average of the weights of the three "
          "best validation epochs), ETF universe, $h=5$, in-range portfolios: QLIKE relative to EWMA of the seed ensemble and "
-         "standard deviation across seeds (percentage points of EWMA). The verdicts of H1 and H2 under this protocol are "
+         "standard deviation across seeds (percentage points of the EWMA loss). The verdicts of H1 and H2 under this protocol are "
          "unchanged except where noted in the text.}\\label{tab:protocol}",
          "\\begin{tabular}{lrrrr}\\toprule",
          " & \\multicolumn{2}{c}{Main protocol} & \\multicolumn{2}{c}{Alternative protocol}\\\\ "
@@ -613,5 +622,24 @@ if __name__ == "__main__":
                ("HE2, pool of 50", X, dict(hypothesis="HE2", block="in-range, pool 50"), "pair"),
                ("HE2d, pool of 50 minus pool of 500", X, dict(hypothesis="HE2d"), "pair"),
                ("HE3, portfolios with $N>20$", X, dict(hypothesis="HE3"), "pair")])
+    F, O = "hypotheses_fourth.csv", "hypotheses_h2orig.csv"
+    hyp_table("hyp_fourth",
+              "Tests behind the verdicts of S1b (symmetric network vs the invariant linear model and vs GBM), "
+              "in-range portfolios. " + CAPTION, "tab:hyp_fourth",
+              [(f"S1b vs Linear, $h={h}$", F, dict(hypothesis="S1b", h=h, benchmark="Linear"), "benchmark")
+               for h in (1, 5, 22)]
+              + [(f"S1b vs GBM, $h={h}$", F, dict(hypothesis="S1b", h=h, benchmark="GBM"), "benchmark")
+                 for h in (1, 5, 22)])
+    hyp_table("hyp_fourth2",
+              "Tests behind the verdicts of S2 (H1, R3 with the counterpart averaged over eight orderings, and R5 on "
+              "the 54-stock subsample, at $h=1$ in the stock universe with ensembles of ten seeds) and of H2 against "
+              "the best of the ten classical models of the original design (in-range portfolios). " + CAPTION,
+              "tab:hyp_fourth2",
+              [("S2, H1 with ten seeds, $h=1$", F, dict(hypothesis="S2-H1"), "pair"),
+                 ("S2, R3 with ten seeds, $h=1$", F, dict(hypothesis="S2-R3"), "pair"),
+                 ("S2, R5 with ten seeds, $h=1$", F, dict(hypothesis="S2-R5"), "pair",
+                  {"Stocks": Path(str(BASE) + "_stocks54")})]
+              + [(f"H2, original ten, $h={h}$", O, dict(hypothesis="H2", h=h, block="in-range"),
+                  "benchmark") for h in (1, 5, 22)])
     levels_table()
     print("tables written to", OUT)

@@ -1,0 +1,36 @@
+{"model": "PortMLP", "hp": {"hidden": [32, 32]}, "best_val": 1.6296852105542232, "epochs": 22, "seconds": 10.958159446716309, "n_params": 1281}
+{"model": "PortMLP", "hp": {"hidden": [64, 64]}, "best_val": 1.6282433836083663, "epochs": 18, "seconds": 8.849047660827637, "n_params": 4609}
+{"model": "PortMLP", "hp": {"hidden": [128, 128]}, "best_val": 1.628212439386468, "epochs": 15, "seconds": 7.71733832359314, "n_params": 17409}
+{"model": "PortMLP", "hp": {"hidden": [64, 64, 64]}, "best_val": 1.6298716350605613, "epochs": 21, "seconds": 11.105350971221924, "n_params": 8769}
+{"model": "MLP", "hp": {"hidden": [256], "dropout": 0.1}, "best_val": 1.583313879213835, "epochs": 18, "seconds": 9.039274454116821, "n_params": 291073}
+{"model": "MLP", "hp": {"hidden": [512, 256], "dropout": 0.1}, "best_val": 1.5870065155782198, "epochs": 14, "seconds": 7.810490608215332, "n_params": 713217}
+{"model": "MLP", "hp": {"hidden": [512, 256], "dropout": 0.3}, "best_val": 1.5860665973864103, "epochs": 15, "seconds": 8.071764707565308, "n_params": 713217}
+{"model": "MLP", "hp": {"hidden": [256, 256], "dropout": 0.3}, "best_val": 1.5861863933111493, "epochs": 15, "seconds": 8.075361728668213, "n_params": 356865}
+{"model": "MLP-sorted", "hp": {"hidden": [256], "dropout": 0.1}, "best_val": 1.5787619477824162, "epochs": 21, "seconds": 11.248621702194214, "n_params": 291073}
+{"model": "MLP-sorted", "hp": {"hidden": [512, 256], "dropout": 0.1}, "best_val": 1.5826533217179148, "epochs": 14, "seconds": 8.815664291381836, "n_params": 713217}
+{"model": "MLP-sorted", "hp": {"hidden": [512, 256], "dropout": 0.3}, "best_val": 1.5829205544371354, "epochs": 14, "seconds": 8.929785251617432, "n_params": 713217}
+{"model": "MLP-sorted", "hp": {"hidden": [256, 256], "dropout": 0.3}, "best_val": 1.5819557309150696, "epochs": 16, "seconds": 9.392582416534424, "n_params": 356865}
+{"model": "GRU", "hp": {"d_hidden": 64, "dropout": 0.1}, "best_val": 1.5775315353744908, "epochs": 26, "seconds": 18.055790662765503, "n_params": 304769}
+{"model": "GRU", "hp": {"d_hidden": 128, "dropout": 0.1}, "best_val": 1.5760460150869269, "epochs": 20, "seconds": 13.851501703262329, "n_params": 404481}
+{"model": "GRU", "hp": {"d_hidden": 64, "dropout": 0.3}, "best_val": 1.5767496259588945, "epochs": 26, "seconds": 16.852179765701294, "n_params": 304769}
+{"model": "GRU", "hp": {"d_hidden": 128, "dropout": 0.3}, "best_val": 1.5750123795710111, "epochs": 20, "seconds": 12.950052261352539, "n_params": 404481}
+{"model": "DeepSets", "hp": {"d": 64, "phi": [64], "rho": [64]}, "best_val": 1.5677877476340847, "epochs": 30, "seconds": 16.954925775527954, "n_params": 19009}
+{"model": "DeepSets", "hp": {"d": 128, "phi": [128], "rho": [128]}, "best_val": 1.564157313422153, "epochs": 21, "seconds": 11.700851917266846, "n_params": 70785}
+{"model": "DeepSets", "hp": {"d": 128, "phi": [128, 128], "rho": [128]}, "best_val": 1.5640179452143217, "epochs": 21, "seconds": 12.580836772918701, "n_params": 87297}
+{"model": "DeepSets", "hp": {"d": 256, "phi": [256], "rho": [256]}, "best_val": 1.5670142205137956, "epochs": 14, "seconds": 8.167212963104248, "n_params": 272641}
+{"model": "PENet", "hp": {"d": 32, "n_layers": 2}, "best_val": 1.573320890727796, "epochs": 22, "seconds": 19.76544713973999, "n_params": 33313}
+{"model": "PENet", "hp": {"d": 64, "n_layers": 1}, "best_val": 1.5716017547406649, "epochs": 17, "seconds": 12.673628568649292, "n_params": 62913}
+{"model": "PENet", "hp": {"d": 64, "n_layers": 2}, "best_val": 1.576203791718734, "epochs": 14, "seconds": 12.831867933273315, "n_params": 98241}
+{"model": "PENet", "hp": {"d": 64, "n_layers": 3}, "best_val": 1.5786477107750743, "epochs": 14, "seconds": 15.776489973068237, "n_params": 133569}
+{"model": "SetTransformer", "hp": {"d": 32, "n_layers": 2}, "best_val": 1.5870009754833423, "epochs": 14, "seconds": 17.34026265144348, "n_params": 40009}
+{"model": "SetTransformer", "hp": {"d": 64, "n_layers": 1}, "best_val": 1.5788071814336275, "epochs": 14, "seconds": 14.300786972045898, "n_params": 86213}
+{"model": "SetTransformer", "hp": {"d": 64, "n_layers": 2}, "best_val": 1.581351681759483, "epochs": 21, "seconds": 26.97210121154785, "n_params": 119817}
+{"model": "SetTransformer", "hp": {"d": 64, "n_layers": 3}, "best_val": 1.5824296003893803, "epochs": 21, "seconds": 32.30649423599243, "n_params": 153421}
+{"model": "SetGRU", "hp": {"d": 64, "d_gru": 32, "n_layers": 1}, "best_val": 1.5666207545682003, "epochs": 21, "seconds": 20.92887592315674, "n_params": 69377}
+{"model": "SetGRU", "hp": {"d": 64, "d_gru": 64, "n_layers": 1}, "best_val": 1.5648593149687116, "epochs": 17, "seconds": 19.175928831100464, "n_params": 81985}
+{"model": "SetGRU", "hp": {"d": 64, "d_gru": 32, "n_layers": 2}, "best_val": 1.5713477228817188, "epochs": 14, "seconds": 17.312711238861084, "n_params": 104705}
+{"model": "SetGRU", "hp": {"d": 32, "d_gru": 32, "n_layers": 2}, "best_val": 1.569862933535325, "epochs": 26, "seconds": 30.91131329536438, "n_params": 38753}
+{"model": "EQCov", "hp": {"d": 32, "n_layers": 2}, "best_val": 1.5824616896478754, "epochs": 15, "seconds": 18.625112056732178, "n_params": 22381}
+{"model": "EQCov", "hp": {"d": 64, "n_layers": 1}, "best_val": 1.5728922862755625, "epochs": 15, "seconds": 15.349834442138672, "n_params": 46029}
+{"model": "EQCov", "hp": {"d": 64, "n_layers": 2}, "best_val": 1.5792496361230548, "epochs": 15, "seconds": 17.633524417877197, "n_params": 81357}
+{"model": "EQCov", "hp": {"d": 64, "n_layers": 2, "k_emb": 16}, "best_val": 1.5789201259613037, "epochs": 14, "seconds": 15.970788478851318, "n_params": 81877}

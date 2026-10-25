@@ -16,6 +16,7 @@ import pandas as pd  # noqa: E402
 import torch  # noqa: E402
 
 from pvol import baselines as bl  # noqa: E402
+from pvol import baselines_ext as bx  # noqa: E402
 from pvol.config import RESULTS, TEST_YEARS  # noqa: E402
 from pvol.data import load_panel  # noqa: E402
 from pvol.dataset import PanelGPU, make_split, origins_in_year, year_bounds  # noqa: E402
@@ -25,7 +26,7 @@ from pvol.train import train_model  # noqa: E402
 
 H, N, K, STEPS, LR = 5, 10, 100, 200, 0.1
 NETS = ["PortMLP", "MLP", "MLP-sorted", "GRU", "DeepSets", "PENet", "SetTransformer", "SetGRU", "EQCov"]
-COV_MODELS = ["EWMA", "DCC", "DCCNL", "LW", "EWMANLS"]
+COV_MODELS = ["EWMA", "DCC", "DCCNL", "LW", "EWMANLS", "PCA-F"]
 
 
 def optimise(loss_fn, B, device, steps=STEPS, lr=LR):
@@ -88,6 +89,8 @@ if __name__ == "__main__":
             covs["LW"] = bl.rolling_shrinkage_covs(R_np, reb, kind="lw")
         if "EWMANLS" in models:
             covs["EWMANLS"] = bl.rolling_shrinkage_covs(R_np, reb, kind="ewma-nls", S_ewma=p["S_ewma"])
+        if "PCA-F" in models:
+            covs["PCA-F"] = bx.pca_factor_covs(R_np, p["S_ewma"], reb)
         if "EWMA" in models:
             covs["EWMA"] = p["S_ewma"][reb].astype(np.float64)
         for m in models:

@@ -1,0 +1,14 @@
+DeepSets       A lr1e-3 ema.995   best 0.3724 @ep  1 | ep5 0.3773 ep10 0.3841 ep20 0.3883 ep29 0.3904
+DeepSets       B lr3e-4 ema.995   best 0.3712 @ep 15 | ep5 0.3778 ep10 0.3728 ep20 0.3736 ep29 0.3735
+DeepSets       C lr3e-4 wd1e-2    best 0.3712 @ep 15 | ep5 0.3778 ep10 0.3728 ep20 0.3735 ep29 0.3734
+DeepSets       D lr1e-4 ema.99    best 0.3696 @ep  2 | ep5 0.3757 ep10 0.3761 ep20 0.3772 ep29 0.3773
+MLP            A lr1e-3 ema.995   best 0.3693 @ep  1 | ep5 0.3809 ep10 0.3846 ep20 0.3862 ep29 0.3875
+MLP            B lr3e-4 ema.995   best 0.3673 @ep  2 | ep5 0.3765 ep10 0.3852 ep20 0.3923 ep29 0.3939
+MLP            C lr3e-4 wd1e-2    best 0.3673 @ep  2 | ep5 0.3765 ep10 0.3851 ep20 0.3924 ep29 0.3940
+MLP            D lr1e-4 ema.99    best 0.3642 @ep  2 | ep5 0.3711 ep10 0.3766 ep20 0.3837 ep29 0.3847
+SetTransformer A lr1e-3 ema.995   best 0.3723 @ep  1 | ep5 0.3777 ep10 0.3807 ep20 0.4054 ep29 0.4128
+SetTransformer B lr3e-4 ema.995   best 0.3747 @ep  1 | ep5 0.3823 ep10 0.3860 ep20 0.3975 ep29 0.4030
+SetTransformer C lr3e-4 wd1e-2    best 0.3747 @ep  1 | ep5 0.3824 ep10 0.3860 ep20 0.3973 ep29 0.4029
+SetTransformer D lr1e-4 ema.99    best 0.3742 @ep  0 | ep5 0.3842 ep10 0.3871 ep20 0.3907 ep29 0.3920
+
+[exited with code 0]
