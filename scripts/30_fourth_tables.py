@@ -32,7 +32,7 @@ def losses():
     L = ["\\begin{table}[t]\\centering\\small",
          "\\caption{In-range loss relative to EWMA under Patton's loss with $b=-1$ (Panel A) and under QLIKE on the test "
          "origins outside 2020 (Panel B). Patton's loss with $b=-1$ is, like QLIKE, robust to noise in the volatility "
-         "proxy but penalises over- and under-prediction differently. Bold: lowest loss among the models shown.}\\label{tab:fourth_losses}",
+         "proxy but penalizes over- and under-prediction differently. Bold: lowest loss among the models shown.}\\label{tab:fourth_losses}",
          "\\begin{tabular}{l" + "rrr" * len(UNIVERSES) + "}\\toprule",
          " & " + " & ".join(f"\\multicolumn{{3}}{{c}}{{{u}}}" for u, _ in UNIVERSES) + "\\\\",
          "\\cmidrule(lr){2-4}\\cmidrule(lr){5-7}",
@@ -79,19 +79,11 @@ def global_holm(universe):
 
 def tests():
     L = ["\\begin{table}[t]\\centering\\footnotesize\\setlength{\\tabcolsep}{3pt}",
-         "\\caption{H1 and H2 (in-range, best of the fourteen classical models) under alternative tests, samples and "
-         "training protocols. Counts of the "
-         "comparisons decided in favour of the symmetric network out of five; $-k$ marks $k$ comparisons decided "
-         "against it (Holm correction within each family); `--': not run. DM: the Diebold--Mariano test of "
-         "Section~\\ref{sec:hypotheses}; excl.\\ 2020 (2026): "
-         "the same test on the test origins outside 2020 (outside the incomplete year 2026), with the best classical "
-         "model chosen on that sample; global Holm: the Holm correction over all 427 comparisons of "
-         "the study at once; GW: "
-         "conditional Giacomini--White test with instruments 1 and the lagged loss differential, with the sign of the "
-         "mean differential deciding the direction. Protocol B and refit: networks retrained under the alternative "
-         "protocols of Section~\\ref{sec:res:robust}. Seed pairs: share of the pairs (seed of the symmetric network, "
-         "seed of the counterpart) in which the symmetric network has the lower in-range QLIKE, range over the five "
-         "pairs; in the stock universe at $h=1$ ten seeds each (100 pairs), otherwise three (9 pairs).}"
+         "\\caption{H1 and H2 under alternative tests, samples and protocols: comparisons decided in favor of the "
+         "symmetric network out of five; ($-k$): $k$ against it; `--': not run. Excl.\\ 2020 (2026): origins outside "
+         "that year; global Holm: over all 427 comparisons; GW: conditional Giacomini--White test (constant and lagged "
+         "differential); protocol B, refit: Section~\\ref{sec:res:robust}. Seed pairs: share of seed pairs in which the "
+         "symmetric network has the lower loss (100 pairs for stocks at $h=1$, otherwise 9).}"
          "\\label{tab:fourth_tests}",
          "\\begin{tabular}{ll" + "c" * 2 * len(UNIVERSES) + "}\\toprule",
          " & & " + " & ".join(f"\\multicolumn{{2}}{{c}}{{{u}}}" for u, _ in UNIVERSES) + "\\\\",

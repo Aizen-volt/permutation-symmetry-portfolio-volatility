@@ -1,8 +1,8 @@
 """Figures for the paper (vector PDF, drawn at the final printed width so that fonts are not scaled).
 
 Style: text set by LaTeX (usetex: STIX like the manuscript in the Elsevier CAS template, Type 1 fonts with correct text encoding); the
-same networks in the same Okabe-Ito colours in every figure (markers or line styles as secondary encoding); the best
-classical model of each panel as a black dashed line; lines labelled directly at their ends instead of a legend; panel
+same networks in the same Okabe-Ito colors in every figure (markers or line styles as secondary encoding); the best
+classical model of each panel as a black dashed line; lines labeled directly at their ends instead of a legend; panel
 titles (a), (b), ... aligned left; comparisons across networks as dot plots with the values printed at the right.
 Run once (it reads both universes).
 """
@@ -96,7 +96,7 @@ def panel_title(ax, u, h, b):
 
 
 def end_labels(ax, items, x, x_text, gap):
-    """Direct labels at the right end of lines: items = [(y, text, colour)] for lines ending at x; the labels are set at
+    """Direct labels at the right end of lines: items = [(y, text, color)] for lines ending at x; the labels are set at
     x_text and moved apart vertically by at least gap (data units) so that they do not overlap."""
     items = sorted(items)
     ys = [y for y, *_ in items]
@@ -143,7 +143,7 @@ def _levels(root):
 
 def fig_conditions():
     """How much accuracy each network loses when an aid of the main design is removed (second and third series): a dot
-    plot with one row per network, grouped into unconstrained and symmetric networks, and the values in two columns."""
+    plot with one row per network, grouped into unconstrained and symmetric networks."""
     U, S = "unconstrained networks", "symmetric networks"
     panels = [
         ("(a) Fixed pool of 50 training portfolios",
@@ -194,12 +194,6 @@ def fig_conditions():
             for u, _ in UNIVERSES:
                 ax.plot(v[u], y_ + dy[u], marker=marker[u], ms=7 if u == "ETF" else 6.4, color=UCOL[u], mec="white", mew=1.0,
                         ls="none", zorder=3)
-            for k, (u, _) in enumerate(UNIVERSES):  # value columns at the right
-                ax.text(1.06 + 0.1 * k, y_, f"${v[u]:+.1f}$", transform=ax.get_yaxis_transform(), ha="right",
-                        va="center", fontsize=9, color=INK)
-        for k, (u, _) in enumerate(UNIVERSES):
-            ax.text(1.06 + 0.1 * k, heads[0][1], u if u == "ETF" else "Stocks", transform=ax.get_yaxis_transform(),
-                    ha="right", va="center", fontsize=8.5, color=UCOL[u])
         ax.set_yticks(ys)
         ax.set_yticklabels([r[1] for r in rows])
         ax.tick_params(axis="y", length=0, pad=6, labelsize=9.5, labelcolor=INK)
@@ -228,7 +222,7 @@ def fig_conditions():
 
 
 def fig_by_size():
-    """h=5: accuracy by the number of constituents, both universes (two large panels, lines labelled at their ends)."""
+    """h=5: accuracy by the number of constituents, both universes (two large panels, lines labeled at their ends)."""
     groups = {"N5": 5, "N10": 10, "N20": 20, "N30": 30, "N40": 40}
     fig, axes = plt.subplots(1, 2, figsize=(TEXTWIDTH, 3.0))
     for k, (ax, (u, root)) in enumerate(zip(axes, UNIVERSES)):
@@ -270,7 +264,7 @@ EPISODES = [("2020-02-20", "2020-05-29"), ("2025-03-31", "2025-05-30")]  # COVID
 
 def fig_cumdiff():
     """Cumulative sum of the daily in-range QLIKE differential, network average minus the best classical model of the
-    horizon, one panel per horizon and one line per universe (labelled at its end); stress episodes shaded."""
+    horizon, one panel per horizon and one line per universe (labeled at its end); stress episodes shaded."""
     import pvol.data as pdata
     from pvol.data import load_panel
 

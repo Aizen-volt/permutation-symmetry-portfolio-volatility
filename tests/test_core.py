@@ -8,7 +8,7 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from pvol.data import load_panel  # noqa: E402
-from pvol.dataset import PanelGPU, make_split, origins_in_year  # noqa: E402
+from pvol.dataset import PanelGPU, make_split, origins_in_year, year_bounds  # noqa: E402
 from pvol.models import MODELS  # noqa: E402
 from pvol.portfolios import make_eval_portfolios  # noqa: E402
 from pvol.train import realized_targets  # noqa: E402
@@ -73,6 +73,17 @@ def test_target_alignment(panel):
     w = torch.as_tensor([ports[j]["weights"]] * len(t_idx), device=DEV, dtype=torch.float32)
     _, y = p.batch(t, S, w, h=5)
     np.testing.assert_allclose(y.cpu().numpy(), Y[:, j], rtol=1e-4)
+
+
+@pytest.mark.parametrize("h", [1, 5, 22])
+def test_split_targets_inside_blocks(panel, h):
+    p, _ = panel
+    for y in range(2020, 2027):
+        split = make_split(p.dates, p.first_valid, y, h)
+        v0, v1 = year_bounds(p.dates, y - 1)
+        assert split.train[1] + h < v0  # training targets end before the validation year
+        assert v0 <= split.val[0] and split.val[1] + h <= v1  # validation targets end inside it
+        assert origins_in_year(p.dates, y, h)[0] > v1
 
 
 def test_no_lookahead(panel):

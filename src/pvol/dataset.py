@@ -130,6 +130,7 @@ class PanelGPU:
             g=g_std,  # (B, 5) portfolio-level HAR/EWMA features
             base=base,  # log EWMA portfolio variance (residual anchor)
             w=w,
+            ids=S,  # asset indices (only the index-sorted MLP of the fifth series uses them)
             sig=sig,
             corr_ewma=aux["Ssub"] / (sig[:, :, None] * sig[:, None, :]),
         )

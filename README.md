@@ -88,6 +88,12 @@ Evaluation and tests (tables in `results*/<experiment>/tables/`)
 | `33_data_crosscheck.py` | prices against a second source (Nasdaq, unadjusted) |
 | `34_tuning_check.py` | hyper-parameters in use against the search repeated at other horizons and on the stocks |
 | `35_refit_summary.py` | accuracy of the networks under the main, B and refit protocols; Linear against the symmetric networks under each |
+| `36_tune_wide.py` | fifth series T: random search (21 configurations per learned model) with validation over 2017-2019 |
+| `37_fifth_series.py` | fifth series: U (MLP with slots ordered by asset index), T (main design with the settings of the search) |
+| `38_fifth_hypotheses.py` | tests of the fifth series (T1-T4, U1-U2), best validation epochs |
+| `39_equivalence.py` | confidence intervals and equivalence tests (TOST, margins of 1 and 2 points) for S1b and H1 |
+| `40_anchor_distance.py` | distance of the learned forecasts from the EWMA anchor and from the Linear correction |
+| `41_sorted_ties.py` | permutation consistency of MLP-sorted on equally weighted portfolios (retrains MLP-sorted, h=5) |
 
 Every hypothesis is decided by the same rule: model a is more accurate than model b if its mean QLIKE is lower and the
 Diebold-Mariano test with the Harvey-Leybourne-Newbold correction rejects at 5% after a Holm correction within the

@@ -30,7 +30,7 @@ ROWS = [
     ("HE1: raw inputs", "hypotheses_extra.csv", dict(hypothesis="HE1")),
     ("HE2: pool of 50 portfolios", "hypotheses_extra.csv", dict(hypothesis="HE2", block="in-range, pool 50")),
     ("HE2: pool of 500 portfolios", "hypotheses_extra.csv", dict(hypothesis="HE2", block="in-range, pool 500")),
-    ("RQ2: cheap routes to invariance", None, None),
+    ("RQ2: simpler routes to invariance", None, None),
     ("R1a: pool of 50 vs shuffled counterpart", R, dict(hypothesis="R1a", block="in-range, pool 50, shuffled counterpart")),
     ("R1a: pool of 500 vs shuffled counterpart", R,
      dict(hypothesis="R1a", block="in-range, pool 500, shuffled counterpart")),
@@ -93,7 +93,7 @@ def ewma_loss(root, h, _cache={}):
 
 def cell(root, fname, flt):
     """(verdict count, effect range, range of Holm-adjusted p-values): effect = mean daily loss differential (first model
-    minus second) in percentage points of the in-range EWMA loss; negative favours the symmetric network. Economic
+    minus second) in percentage points of the in-range EWMA loss; negative favors the symmetric network. Economic
     comparisons: no effect size."""
     f = root / "main" / "tables" / fname
     if not f.exists():
@@ -127,20 +127,13 @@ def cell(root, fname, flt):
 
 def write(rows, name, label, caption):
     L = ["\\begin{table}[t]\\centering\\footnotesize\\setlength{\\tabcolsep}{4pt}",
-         "\\caption{" + caption + " Each cell reports how many of the tested comparisons of the family are decided in favour "
-         "of the symmetry-respecting network (QLIKE lower and the Diebold--Mariano test significant at 5\\% after the Holm "
-         "correction), out of the comparisons tested; $-k$ marks $k$ comparisons decided significantly against it. `--' "
-         "means the family was not run for that universe; R5 and the S2 repetition of R5 are run on a subsample of 54 "
-         "stocks and reported in the stock column. Effect: range over the comparisons of the mean daily QLIKE "
-         "differential (first model minus second), in percentage points of the in-range EWMA loss; negative values "
-         "favour the symmetric network"
-         + (" (for the difference-in-differences families: the stated condition)." if name == "scoreboard" else
-            " (for the difference-in-differences families and H3a, H4: the stated condition). No effect size for the "
-            "economic comparisons.")
-         + " $p_{\\text{Holm}}$: range of the Holm-adjusted $p$-values of the comparisons of the family."
-         + ("" if name != "scoreboard" else " $^{a}$Comparisons in which the "
-         "counterpart trained on the pool in random orders is more accurate than the same network in a fixed order (MLP "
-         "and GRU, pools of 50 and 500).") + "}\\label{" + label + "}",
+         "\\caption{" + caption + " Verdict: comparisons decided in favor of the symmetric network (Section~"
+         "\\ref{sec:hypotheses}) out of those tested; ($-k$): $k$ decided against it; `--': not run. Effect: range of the "
+         "mean QLIKE differential (first model minus second) in points of the EWMA loss; negative favors the symmetric "
+         "network" + ("" if name == "scoreboard" else " (H3a, H4: the stated condition); no effect size for the economic "
+                      "comparisons") + ". $p_{\\text{Holm}}$: range of the Holm-adjusted $p$-values."
+         + ("" if name != "scoreboard" else " $^{a}$Shuffled counterpart vs the same network in fixed order.")
+         + "}\\label{" + label + "}",
          "\\begin{tabular}{lcrrcrr}\\toprule",
          " & " + " & ".join(f"\\multicolumn{{3}}{{c}}{{{u}}}" for u, _ in UNIVERSES) + "\\\\",
          "\\cmidrule(lr){2-4}\\cmidrule(lr){5-7}",
@@ -162,8 +155,6 @@ def write(rows, name, label, caption):
 
 if __name__ == "__main__":
     write(ROWS, "scoreboard", "tab:scoreboard",
-          "Verdicts of the hypotheses of the three research questions, both universes. H1 and H2 are confirmatory, the "
-          "second series (HE) was specified before it was run, the third (R) and fourth (S) series are exploratory "
-          "(Section~\\ref{sec:hypotheses}). H2: best of the fourteen classical models.")
+          "Verdicts of the hypotheses; H1 and H2 are confirmatory. R5 and its S2 repetition use 54 stocks.")
     write(ROWS_SUPP, "scoreboard_supp", "tab:scoreboard_supp",
           "Verdicts of the secondary families, both universes.")

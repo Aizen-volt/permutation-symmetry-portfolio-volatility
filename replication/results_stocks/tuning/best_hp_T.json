@@ -1,0 +1,123 @@
+{
+ "MLP": {
+  "hp": {
+   "hidden": [
+    256
+   ],
+   "dropout": 0.0
+  },
+  "cfg": {
+   "lr": 0.0003,
+   "weight_decay": 0.001,
+   "patience": 10,
+   "min_epochs": 10
+  }
+ },
+ "GRU": {
+  "hp": {
+   "d_hidden": 64,
+   "head": [
+    256
+   ],
+   "dropout": 0.1
+  },
+  "cfg": {
+   "lr": 0.0003,
+   "weight_decay": 1e-05,
+   "patience": 20,
+   "min_epochs": 0
+  }
+ },
+ "DeepSets": {
+  "hp": {
+   "d": 256,
+   "phi": [
+    256,
+    256
+   ],
+   "rho": [
+    256
+   ],
+   "dropout": 0.0
+  },
+  "cfg": {
+   "lr": 0.0003,
+   "weight_decay": 0.0,
+   "patience": 10,
+   "min_epochs": 0
+  }
+ },
+ "PENet": {
+  "hp": {
+   "d": 32,
+   "n_layers": 1,
+   "rho": [
+    128,
+    128
+   ],
+   "dropout": 0.0
+  },
+  "cfg": {
+   "lr": 0.001,
+   "weight_decay": 1e-05,
+   "patience": 20,
+   "min_epochs": 10
+  }
+ },
+ "SetTransformer": {
+  "hp": {
+   "d": 32,
+   "n_layers": 1,
+   "rho": [
+    128,
+    128
+   ],
+   "dropout": 0.1
+  },
+  "cfg": {
+   "lr": 0.001,
+   "weight_decay": 0.0001,
+   "patience": 20,
+   "min_epochs": 10
+  }
+ },
+ "SetGRU": {
+  "hp": {
+   "d": 128,
+   "d_gru": 64,
+   "n_layers": 2,
+   "rho": [
+    128
+   ],
+   "dropout": 0.3
+  },
+  "cfg": {
+   "lr": 0.001,
+   "weight_decay": 0.0,
+   "patience": 20,
+   "min_epochs": 0
+  }
+ },
+ "EQCov": {
+  "hp": {
+   "d": 128,
+   "n_layers": 1,
+   "k_emb": 16
+  },
+  "cfg": {
+   "lr": 0.001,
+   "weight_decay": 0.0,
+   "patience": 20,
+   "min_epochs": 0
+  }
+ },
+ "Linear": {
+  "hp": {},
+  "cfg": {
+   "lr": 0.001,
+   "weight_decay": 0.0001,
+   "patience": 10,
+   "min_epochs": 0
+  }
+ }
+}

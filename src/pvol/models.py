@@ -8,6 +8,7 @@ Symmetry classes (w.r.t. a joint permutation of the assets in a portfolio):
   PortMLP   invariant by construction (sees only portfolio-level aggregates, no constituents)
   MLPConcat not invariant: constituents are concatenated into fixed slots (random order)
   MLPSorted invariant by canonicalisation: slots ordered by descending weight
+  MLP-idsort invariant by canonicalisation: slots ordered by asset index, unrelated to the weights (fifth series, U)
   GRUConcat not invariant: recurrent model over the concatenated slot features
   DeepSets  invariant: rho(pool_i phi(x_i))  (Zaheer et al., 2017)
   PENet     equivariant layers with correlation-gated pairwise messages + invariant pooling
@@ -69,14 +70,14 @@ class PortMLP(nn.Module):
         return inp["base"] + self.net(inp["g"]).squeeze(-1)
 
 
-def pad_slots(inp, n_slots, sort_by_weight=False):
+def pad_slots(inp, n_slots, sort_by_weight=False, sort_by_id=False):
     x = torch.cat([inp["x_asset"], inp["x_port"]], -1)
     p = inp["pair"]
     B, N, Fx = x.shape
     if N > n_slots:
         raise ValueError(f"portfolio has {N} assets but the model has only {n_slots} slots")
-    if sort_by_weight:
-        order = inp["w"].argsort(1, descending=True)
+    if sort_by_weight or sort_by_id:
+        order = inp["w"].argsort(1, descending=True) if sort_by_weight else inp["ids"].argsort(1)
         x = torch.gather(x, 1, order[:, :, None].expand(B, N, Fx))
         p = p[torch.arange(B, device=p.device)[:, None, None], order[:, :, None], order[:, None, :]]
     xp = x.new_zeros(B, n_slots, Fx + 1)
@@ -89,15 +90,15 @@ def pad_slots(inp, n_slots, sort_by_weight=False):
 
 
 class MLPConcat(nn.Module):
-    def __init__(self, n_slots=20, hidden=(512, 256), dropout=0.1, sort_by_weight=False):
+    def __init__(self, n_slots=20, hidden=(512, 256), dropout=0.1, sort_by_weight=False, sort_by_id=False):
         super().__init__()
-        self.n_slots, self.sort = n_slots, sort_by_weight
+        self.n_slots, self.sort, self.sort_id = n_slots, sort_by_weight, sort_by_id
         d_in = n_slots * (F_ASSET + F_PORT + 1) + n_slots * (n_slots - 1) // 2 * F_PAIR + F_G
         self.net = mlp(d_in, hidden, 1, dropout)
         zero_last(self.net)
 
     def forward(self, inp):
-        xp, pu = pad_slots(inp, self.n_slots, self.sort)
+        xp, pu = pad_slots(inp, self.n_slots, self.sort, self.sort_id)
         z = torch.cat([xp.flatten(1), pu.flatten(1), inp["g"]], -1)
         return inp["base"] + self.net(z).squeeze(-1)
 
@@ -345,6 +346,7 @@ MODELS = {
     "Linear": LinearSet,
     "MLP": MLPConcat,
     "MLP-sorted": lambda **kw: MLPConcat(sort_by_weight=True, **kw),
+    "MLP-idsort": lambda **kw: MLPConcat(sort_by_id=True, **kw),
     "GRU": GRUConcat,
     "DeepSets": DeepSets,
     "DeepSetsP": DeepSetsP,
@@ -353,5 +355,5 @@ MODELS = {
     "SetGRU": SetGRU,
     "EQCov": EQCov,
 }
-SLOT_MODELS = {"MLP", "MLP-sorted", "GRU"}  # cannot score portfolios larger than n_slots
+SLOT_MODELS = {"MLP", "MLP-sorted", "MLP-idsort", "GRU"}  # cannot score portfolios larger than n_slots
 SEQ_MODELS = {"GRU", "SetGRU"}  # need the last 22 days of asset features (x_seq)

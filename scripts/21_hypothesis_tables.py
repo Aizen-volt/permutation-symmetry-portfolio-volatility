@@ -112,8 +112,8 @@ def hyp_table(name, caption, label, families):
     (OUT / f"{name}.tex").write_text("\n".join(L), encoding="utf-8")
 
 
-CAPTION = ("Negative DM statistics favour the symmetric network (for differences of differentials: favour the stated "
-           "condition). $p_{\\text{Holm}}$: Holm-adjusted $p$-value within the family; bold: decided in favour of the "
+CAPTION = ("Negative DM statistics favor the symmetric network (for differences of differentials: favor the stated "
+           "condition). $p_{\\text{Holm}}$: Holm-adjusted $p$-value within the family; bold: decided in favor of the "
            "symmetric network; $^{-}$: decided against it. `--': not run.")
 
 
@@ -152,7 +152,7 @@ def economic_table():
         t = root / "main" / "tables"
         mv = pd.read_csv(t / "minvar_h5.csv")
         by = mv.groupby(["model", "origin"]).realised_var.mean().unstack(0)
-        vol = (100 * (by.mean() * 252) ** 0.5).to_dict()  # annualised realised volatility, as in 17_economic_tests
+        vol = (100 * (by.mean() * 252) ** 0.5).to_dict()  # annualized realized volatility, as in 17_economic_tests
         hhi = mv.groupby("model").hhi.mean().to_dict()
         vt = pd.read_csv(t / "vol_targeting.csv")
         vt = vt[vt.block == "in-range"].set_index(["model", "h"]).rmse_log_monthly
@@ -171,10 +171,10 @@ def economic_table():
             table[(u, m)] = [vol.get(m), hhi.get(m)] + [vt.get((m, h)) for h in (1, 5, 22)]
     fmts = ["{:.2f}", "{:.2f}", "{:.3f}", "{:.3f}", "{:.3f}"]
     L = ["\\begin{table}[t]\\centering\\footnotesize\\setlength{\\tabcolsep}{4pt}",
-         "\\caption{Economic evaluation. Minimum variance ($h=5$): annualised realised volatility (\\%) of the long-only "
-         "portfolios that minimise each model's forecast over 100 random ten-asset subsets at every fifth test origin, and "
+         "\\caption{Economic evaluation. Minimum variance ($h=5$): annualized realized volatility (\\%) of the long-only "
+         "portfolios that minimize each model's forecast over 100 random ten-asset subsets at every fifth test origin, and "
          "their average Herfindahl index of weights (HHI). Volatility targeting: root mean squared log deviation of "
-         "monthly realised volatility from the target, in-range portfolios, rebalanced every $h$ days. Lower is better "
+         "monthly realized volatility from the target, in-range portfolios, rebalanced every $h$ days. Lower is better "
          "everywhere except HHI; bold: best in the column. Models absent from the minimum-variance experiment (univariate "
          "per-portfolio models) are marked `--'; HAR-WLS, GBM, PortMLP and MLP-sorted are in the replication package.}"
          "\\label{tab:economic}",
@@ -274,7 +274,7 @@ def supplementary_tables():
 
     _both_universes_table("mse", "tab:mse",
                           "Out-of-sample MSE relative to EWMA, in-range portfolios, 2020--2026 (secondary loss). MSE is "
-                          "dominated by the few days with the largest realised variance.", mse, models)
+                          "dominated by the few days with the largest realized variance.", mse, models)
 
     def mz(u, root, h, m):
         f = root / "main" / "tables" / f"mz_h{h}.csv"
@@ -285,7 +285,7 @@ def supplementary_tables():
         return float(r.r2.iloc[0]) if len(r) else None
 
     _both_universes_table("mz", "tab:mz",
-                          "Mincer--Zarnowitz regressions of log realised on log forecast variance, in-range portfolios, "
+                          "Mincer--Zarnowitz regressions of log realized on log forecast variance, in-range portfolios, "
                           "pooled over portfolios and origins: $R^2$.", mz, ["EWMA"] + models)
 
     def seed_sd(u, root, h, m):
@@ -305,13 +305,13 @@ def supplementary_tables():
 
 def tail_table(models):
     """Volatility targeting, in-range portfolios, h=1 and h=5: share of months above 1.5 x target, below target / 1.5,
-    and mean log deviation of monthly realised volatility from the target, both universes."""
+    and mean log deviation of monthly realized volatility from the target, both universes."""
     vt = {u: pd.read_csv(root / "main" / "tables" / "vol_targeting.csv") for u, root in UNIVERSES}
     cols = [("tail_share", 100, "{:.1f}"), ("low_share", 100, "{:.1f}"), ("log_bias", 100, "${:+.1f}$")]
     L = ["\\begin{table}[t]\\centering\\footnotesize\\setlength{\\tabcolsep}{3pt}",
-         "\\caption{Volatility targeting, in-range portfolios: share of months (\\%) in which the realised volatility of "
+         "\\caption{Volatility targeting, in-range portfolios: share of months (\\%) in which the realized volatility of "
          "the levered portfolio is above 1.5 times the target (over) or below the target divided by 1.5 (under), and mean "
-         "log deviation of monthly realised volatility from the target ($\\times100$; negative: realised volatility "
+         "log deviation of monthly realized volatility from the target ($\\times100$; negative: realized volatility "
          "below the target on average, i.e.\\ variance forecasts too high and leverage too low). Descriptive only; "
          "these measures are not tested.}\\label{tab:tail}",
          "\\begin{tabular}{l" + "r" * 12 + "}\\toprule",
@@ -387,7 +387,7 @@ def epochs_table():
     L = ["\\begin{table}[t]\\centering\\footnotesize\\setlength{\\tabcolsep}{5pt}",
          "\\caption{Epoch with the best validation loss (the weights kept by early stopping), main design, $h=5$, over "
          "seeds and test years (21 runs per cell): median epoch and share of runs in which it is the first or the second "
-         "epoch, i.e.\\ in which the kept network has been trained for at most 250 optimisation steps.}\\label{tab:epochs}",
+         "epoch, i.e.\\ in which the kept network has been trained for at most 250 optimization steps.}\\label{tab:epochs}",
          "\\begin{tabular}{lrrrr}\\toprule",
          " & " + " & ".join(f"\\multicolumn{{2}}{{c}}{{{u}}}" for u, _ in UNIVERSES) + "\\\\ "
          "\\cmidrule(lr){2-3}\\cmidrule(lr){4-5}",
@@ -490,7 +490,7 @@ def third_series_tables():
               "in-range portfolios): Diebold--Mariano statistics and Holm-adjusted $p$-values.")]
     for name, label, part, caption in parts:
         L = ["\\begin{table}[p]\\centering\\footnotesize\\setlength{\\tabcolsep}{4pt}",
-             f"\\caption{{{caption} Negative statistics favour the first model. Bold: first model significantly more "
+             f"\\caption{{{caption} Negative statistics favor the first model. Bold: first model significantly more "
              f"accurate; $^{{-}}$: significantly less accurate.}}\\label{{{label}}}",
              "\\begin{tabular}{lrrrr}\\toprule",
              " & \\multicolumn{2}{c}{ETF} & \\multicolumn{2}{c}{Stocks}\\\\ \\cmidrule(lr){2-3}\\cmidrule(lr){4-5}",
@@ -537,7 +537,7 @@ def third_series_tables():
          "\\caption{Third series: QLIKE relative to EWMA (in-range portfolios, seed ensembles; $h=5$ in panels A--C, "
          "$h=1$ in panel D) of the unconstrained networks with "
          "the cheap alternatives to architectural symmetry---a new random order in every draw from the pool, "
-         "canonicalisation by sorting, averaging over 8 orderings at prediction time---and of symmetric networks for "
+         "canonicalization by sorting, averaging over 8 orderings at prediction time---and of symmetric networks for "
          "reference. Deep Sets + pairs adds the weight-averaged correlation of each constituent with the others to its "
          "element features.}\\label{tab:review_levels}",
          "\\begin{tabular}{lrr}\\toprule",
@@ -603,7 +603,7 @@ if __name__ == "__main__":
                ("H4, $K=2$ years", H, dict(hypothesis="H4", block="in-range, K=2 minus full"), "pair")])
     hyp_table("hyp_econ",
               "Tests behind the verdicts of the economic comparisons: minimum variance ($h=5$) and volatility targeting "
-              "(root mean squared log deviation of monthly realised volatility from the target, every horizon). "
+              "(root mean squared log deviation of monthly realized volatility from the target, every horizon). "
               + CAPTION, "tab:hyp_econ",
               [               ("H1, minimum variance", "economic_tests.csv", dict(hypothesis="H1-minvar"), "pair"),
                ("H2, minimum variance", "economic_tests.csv", dict(hypothesis="H2-minvar"), "benchmark"),

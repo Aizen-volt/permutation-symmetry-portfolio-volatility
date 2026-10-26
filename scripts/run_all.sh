@@ -78,6 +78,16 @@ $PY scripts/32_precision_multiplicity.py
 $PY scripts/34_tuning_check.py
 PVOL_UNIVERSE=etf $PY scripts/35_refit_summary.py
 PVOL_UNIVERSE=stocks $PY scripts/35_refit_summary.py
+# fifth series: sort key (U) and broader search with validation over three years (T)
+for u in etf stocks; do
+    PVOL_UNIVERSE=$u $PY scripts/37_fifth_series.py U
+    PVOL_UNIVERSE=$u $PY scripts/36_tune_wide.py
+    PVOL_UNIVERSE=$u $PY scripts/37_fifth_series.py T
+    PVOL_UNIVERSE=$u $PY scripts/38_fifth_hypotheses.py
+    PVOL_UNIVERSE=$u $PY scripts/39_equivalence.py
+    PVOL_UNIVERSE=$u $PY scripts/40_anchor_distance.py
+    PVOL_UNIVERSE=$u $PY scripts/41_sorted_ties.py
+done
 
 # tables and figures for both universes
 $PY scripts/10_tables_tex.py

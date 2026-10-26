@@ -62,7 +62,7 @@ MAIN_NOTE = ("Bold: best model in the column. $^\\dagger$: member of the 90\\% M
 
 
 # main text: the strongest classical models, the invariant linear model and the networks; all models in main_all.tex
-MAIN_MODELS = ["EWMA", "HAR", "HARX", "LogHAR-X", "HEAVY", "GJR", "DCC",
+MAIN_MODELS = ["EWMA", "HAR", "HAR-WLS", "HARX", "LogHAR-X", "HEAVY", "GJR", "DCC", "PCA-F",
                "Linear", "MLP", "MLP-sorted", "GRU", "DeepSets", "PENet", "SetTransformer", "SetGRU", "EQCov"]
 
 
@@ -73,14 +73,11 @@ def main_table(exp="main", full=False):
               and any(m in c.get((h, "in-range"), {}) for c in cells.values() for h in HORIZONS)]
     first_learned = next(m for m in models if m in NEURAL)
     L = ["\\begin{table}[t]\\centering\\footnotesize\\setlength{\\tabcolsep}{5pt}",
-         "\\caption{Out-of-sample QLIKE relative to EWMA (values below 1 beat RiskMetrics) for the in-range portfolios, test "
-         "years 2020--2026, averaged over portfolios and forecast origins" + ("" if full else ", for the strongest "
-         "classical models, the invariant linear model and the networks") + ". Symmetry of the learned models: "
-         + ("agg.\\ = invariant because only portfolio aggregates are used; " if full else "")
-         + "pool.\\ = invariant pooled features; canon.\\ = canonicalisation by sorting; "
-         "arch.\\ = architectural; -- = none. Bold: best of all models in the column. $^\\dagger$: member of the 90\\% "
-         "Model Confidence Set of the column. Learned forecasts are seed ensembles."
-         + ("}\\label{tab:main_all}" if full else " The losses of all fourteen classical models are part of the replication package.}\\label{tab:main}"),
+         "\\caption{Out-of-sample QLIKE relative to EWMA (below 1: better than RiskMetrics), in-range portfolios, "
+         "2020--2026. Sym.: " + ("agg.\\ = portfolio aggregates only, " if full else "")
+         + "pool.\\ = invariant pooled features, canon.\\ = sorting, arch.\\ = architectural, -- = none. Bold: best in "
+         "the column; $^\\dagger$: in the 90\\% Model Confidence Set."
+         + ("}\\label{tab:main_all}" if full else "}\\label{tab:main}"),
          "\\begin{tabular}{llrrrrrr}\\toprule",
          " & & " + " & ".join(f"\\multicolumn{{3}}{{c}}{{{u}}}" for u, _ in UNIVERSES) + "\\\\",
          "\\cmidrule(lr){3-5}\\cmidrule(lr){6-8}",
@@ -140,8 +137,8 @@ def dm_table(exp="main", block="in-range"):
     L = ["\\begin{table}[t]\\centering\\footnotesize\\setlength{\\tabcolsep}{5pt}",
          "\\caption{Diebold--Mariano tests of equal QLIKE for comparisons outside the hypotheses, " + what + " "
          "(HLN-corrected statistics on daily cross-sectional average loss differentials, unadjusted significance): "
-         "canonicalisation, reading the constituents, and a learned against a classical covariance model. Negative values "
-         "favour the first model. $^{*}$, $^{**}$, $^{***}$: 10\\%, 5\\%, 1\\%. The matched comparisons of the "
+         "canonicalization, reading the constituents, and a learned against a classical covariance model. Negative values "
+         "favor the first model. $^{*}$, $^{**}$, $^{***}$: 10\\%, 5\\%, 1\\%. The matched comparisons of the "
          "hypotheses are reported with the test statistics behind the verdicts.}\\label{tab:dm_" + exp + "}",
          "\\begin{tabular}{lrrrrrr}\\toprule",
          " & " + " & ".join(f"\\multicolumn{{3}}{{c}}{{{u}}}" for u, _ in UNIVERSES) + "\\\\",
@@ -170,12 +167,9 @@ def perm_table_both(exp="main"):
               if any((u, m, h) in vals for u, _ in UNIVERSES for h in HORIZONS)
               and any(vals.get((u, m, h), (0, 0))[1] > 1e-4 for u, _ in UNIVERSES for h in HORIZONS)]
     L = ["\\begin{table}[t]\\centering\\footnotesize\\setlength{\\tabcolsep}{5pt}",
-         "\\caption{Permutation consistency: the same 100 ten-asset portfolios are forecast with their constituents listed "
-         "in five different orders. Median (panel A) and 99th percentile (panel B), over portfolios and origins, of the "
-         "range of the log-variance forecast across the orderings; averages over seeds. A range of 0.07 means that two "
-         "orderings of the same portfolio receive variance forecasts that differ by about 7\\%. For the invariant linear "
-         "model, MLP-sorted and all architecturally symmetric networks the range is zero up to floating-point error "
-         "($<10^{-6}$); for MLP-sorted only because the weights are distinct.}"
+         "\\caption{Permutation consistency: range of the log-variance forecast of the same 100 ten-asset portfolios "
+         "listed in five orders, median (A) and 99th percentile (B); 0.07 means forecasts about 7\\% apart. Invariant "
+         "models (range $<10^{-6}$) are not shown.}"
          "\\label{tab:perm}",
          "\\begin{tabular}{lrrrrrr}\\toprule",
          " & " + " & ".join(f"\\multicolumn{{3}}{{c}}{{{u}}}" for u, _ in UNIVERSES) + "\\\\",
@@ -237,15 +231,15 @@ def universe_table(root, name, caption, label, place="t", size="small"):
 
 if __name__ == "__main__":
     universe_table(RESULTS, "universe",
-                   "Investment universe: 54 US-listed ETFs, daily data from 19 December 2007 to 18 September 2026. Annualised arithmetic "
-                   "mean return and volatility are averages over the funds in each class; "
-                   "$\\overline{\\text{corr}}_{\\text{in}}$ ($\\overline{\\text{corr}}_{\\text{out}}$) is the average "
-                   "pairwise correlation of daily returns within the class (with funds of other classes).", "tab:universe")
+                   "Investment universe: 54 US-listed ETFs, 19 December 2007 to 18 September 2026. Annualized mean return "
+                   "and volatility averaged over the funds of each class; $\\overline{\\text{corr}}_{\\text{in}}$ "
+                   "($\\overline{\\text{corr}}_{\\text{out}}$): average correlation of daily returns within the class (with "
+                   "other classes).", "tab:universe")
     universe_table(Path(str(RESULTS) + "_stocks"), "universe_stocks",
                    "Second universe: 122 large US stocks by GICS sector, same sample period and statistics as in "
-                   "Table~\\ref{tab:universe}. The stocks are today's large capitalisations with a complete price history, "
+                   "Table~\\ref{tab:universe}. The stocks are today's large capitalizations with a complete price history, "
                    "which explains the high average returns (survivorship bias). Sectors follow GICS with one inconsistency: ADP is "
-                   "labelled Information Technology, its sector before the March 2023 GICS revision (now Industrials), "
+                   "labeled Information Technology, its sector before the March 2023 GICS revision (now Industrials), "
                    "while Mastercard follows the revised classification (Financials); the sector label enters the "
                    "networks only as an input dummy.", "tab:universe_stocks", place="!htbp", size="footnotesize")
     if UNIVERSE_NAME == "etf":  # the combined tables read both universes
