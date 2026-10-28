@@ -1,4 +1,4 @@
-"""Sixth series V4 (docs/JOURNAL.md, section 4g): accuracy by test year, from the stored forecasts (no training).
+"""Sixth series V4: accuracy by test year, from the stored forecasts (no training).
 
 For each universe and horizon: in-range QLIKE relative to EWMA in every test year for the networks, Linear, HEAVY and
 the best classical model of the horizon (yearly_levels.csv), and for the pairs PE-Net - MLP, Set-GRU - GRU and

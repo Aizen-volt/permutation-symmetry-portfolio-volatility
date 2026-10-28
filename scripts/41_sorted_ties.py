@@ -1,4 +1,4 @@
-"""Permutation consistency of MLP-sorted on equally weighted portfolios (review remark): sorting by weight leaves the
+"""Permutation consistency of MLP-sorted on equally weighted portfolios: sorting by weight leaves the
 order of tied constituents to the input order, so MLP-sorted is exactly invariant only for distinct weights.
 
 MLP-sorted is retrained in the main design (h = 5, seeds 0-2, every test year, tuned hyper-parameters) and applied to

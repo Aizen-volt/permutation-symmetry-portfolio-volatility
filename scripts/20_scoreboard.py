@@ -17,7 +17,7 @@ from pvol.config import RESULTS  # noqa: E402
 OUT = Path(__file__).resolve().parents[1] / "paper" / "tables"
 BASE = Path(str(RESULTS).replace("_stocks", ""))
 UNIVERSES = [("ETF", BASE), ("Stocks", Path(str(BASE) + "_stocks"))]
-E, R = "economic_tests.csv", "hypotheses_review.csv"
+E, R = "economic_tests.csv", "hypotheses_third.csv"
 
 F4 = "hypotheses_fourth.csv"
 # (label, file, filter[, suffix of the results directory that replaces the stock universe]); file None = section title

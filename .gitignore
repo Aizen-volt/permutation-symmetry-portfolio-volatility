@@ -18,3 +18,4 @@ paper/*.toc
 paper/*.synctex.gz
 paper/*.fdb_latexmk
 paper/*.fls
+/.coverage

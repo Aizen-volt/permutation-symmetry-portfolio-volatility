@@ -1,4 +1,4 @@
-"""How far the learned models move away from their EWMA anchor (review question): for every learned model and horizon,
+"""How far the learned models move away from their EWMA anchor: for every learned model and horizon,
 the standard deviation and the mean absolute value of log(forecast / EWMA forecast) over the in-range portfolios and
 the test origins, for the seed ensemble and as the average over individual seeds. Zero means the model reproduces
 RiskMetrics. For EQ-Cov, which is not a residual model, the same quantity measures its distance from EWMA.

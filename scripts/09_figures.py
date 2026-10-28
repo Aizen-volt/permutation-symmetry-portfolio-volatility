@@ -130,7 +130,7 @@ UCOL = {"ETF": "#0072B2", "Stock": "#D55E00"}
 def _levels(root):
     """QLIKE relative to EWMA (in-range, h=5) of every network variant, from the evaluation tables."""
     out = {}
-    for f in ("extra_levels.csv", "review_levels.csv"):
+    for f in ("extra_levels.csv", "third_levels.csv"):
         p = root / "main" / "tables" / f
         if p.exists():
             d = pd.read_csv(p)

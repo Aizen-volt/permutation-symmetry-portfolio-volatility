@@ -474,7 +474,7 @@ def table_v6():
     rows = []
     for u, root, _ in UNIVERSES:
         t = root / "main" / "tables"
-        old = with_effects(pd.read_csv(t / "hypotheses_review.csv").query("h == 5"), root)
+        old = with_effects(pd.read_csv(t / "hypotheses_third.csv").query("h == 5"), root)
         new = with_effects(pd.read_csv(t / "hypotheses_v6.csv"), root)
         rows.append((old, new))
     designs = [("raw inputs", "RAW", ("DeepSets", "PENet", "SetTransformer")),

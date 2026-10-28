@@ -134,4 +134,9 @@ forecasts.
 - `src/pvol/baselines.py`, `src/pvol/baselines_ext.py`: classical benchmarks
 - `src/pvol/evaluate.py`: losses, Diebold-Mariano, model confidence set, Mincer-Zarnowitz, value-at-risk backtests
 
-Tests: `.venv\Scripts\python -m pytest tests` (permutation symmetry of the models, alignment of targets, no look-ahead).
+Tests: `.venv\Scripts\python -m pytest tests --cov=src/pvol` (every line of `src/pvol` is covered; about 30 s on
+one GPU, the CPU works too). They check the permutation symmetry of the models, the alignment of the targets and the
+absence of look-ahead, every benchmark and statistical test against a direct computation or a reference
+implementation, short training runs of the networks and of the experiment runner, the Holm and Benjamini-Hochberg
+corrections of the scripts, and that the verdicts and corrected p-values stored in `replication/` follow the
+decision rule. The tests on the real panel need `data/processed/panel.npz` (`scripts/02_build_panel.py`).

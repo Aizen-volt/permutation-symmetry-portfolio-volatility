@@ -1,4 +1,4 @@
-"""Sixth series V5 (docs/JOURNAL.md, section 4g): does the optimizer of the minimum-variance evaluation matter?
+"""Sixth series V5: does the optimizer of the minimum-variance evaluation matter?
 
 Same design as scripts/13_minvar.py (h = 5, every 5th test origin, 100 random ten-asset subsets, long-only weights,
 networks retrained with seed 0). For each model the weights of the original optimizer (200 Adam steps on softmax

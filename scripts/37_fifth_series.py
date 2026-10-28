@@ -1,4 +1,4 @@
-"""Fifth series (T, U), hypotheses and decision rules fixed before running (docs/JOURNAL.md, section 4f).
+"""Fifth series (T, U), hypotheses and decision rules fixed before running.
 
 T: main design with the settings of the broader search (scripts/36_tune_wide.py, best_hp_T.json), tag '<model>-T';
    networks and Linear, h = 1, 5, 22, seeds 0-2.

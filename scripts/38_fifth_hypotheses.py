@@ -1,4 +1,4 @@
-"""Tests of the fifth series (T, U), decision rules fixed before the series was run (docs/JOURNAL.md, section 4f).
+"""Tests of the fifth series (T, U), decision rules fixed before the series was run.
 
 QLIKE, HLN-corrected Diebold-Mariano test on daily cross-sectional average loss differentials, 5%, Holm within family;
 in-range portfolios; seed ensembles (seeds 0-2; P50: 0-1).

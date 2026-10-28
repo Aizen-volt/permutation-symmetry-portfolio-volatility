@@ -1,4 +1,4 @@
-"""Tests of the sixth series (V1-V3), decision rules fixed before the series was run (docs/JOURNAL.md, section 4g).
+"""Tests of the sixth series (V1-V3), decision rules fixed before the series was run.
 
 QLIKE, HLN-corrected Diebold-Mariano test on daily cross-sectional average loss differentials, 5%, Holm within family;
 in-range portfolios; seed ensembles (seeds 0-2).

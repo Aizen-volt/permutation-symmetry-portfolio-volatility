@@ -1,7 +1,7 @@
 """Tests of the third series (R1-R5), decision rules fixed before the series was run.
 
 QLIKE, HLN-corrected Diebold-Mariano test on daily cross-sectional average loss differentials, 5%, Holm within family;
-in-range portfolios. Writes results*/main/tables/hypotheses_review.csv and review_levels.csv for the current universe
+in-range portfolios. Writes results*/main/tables/hypotheses_third.csv and third_levels.csv for the current universe
 (PVOL_UNIVERSE), and appends the permutation consistency of the TTA networks to perm_h*.csv.
 """
 import importlib.util
@@ -98,8 +98,8 @@ if __name__ == "__main__":
         rows += comparisons(L, ci, h, "R4 (aux)", "in-range",
                             [("DeepSetsP", "MLP"), ("DeepSetsP-RAW", "DeepSets-RAW")])
     out = RESULTS / "main" / "tables"
-    pd.DataFrame(rows).to_csv(out / "hypotheses_review.csv", index=False)
-    pd.DataFrame(levels).to_csv(out / "review_levels.csv", index=False)
+    pd.DataFrame(rows).to_csv(out / "hypotheses_third.csv", index=False)
+    pd.DataFrame(levels).to_csv(out / "third_levels.csv", index=False)
     pd.set_option("display.width", 220)
     if rows:
         print(pd.DataFrame(rows)[["hypothesis", "h", "block", "model", "benchmark", "mean_diff", "dm", "p_holm", "verdict"]]

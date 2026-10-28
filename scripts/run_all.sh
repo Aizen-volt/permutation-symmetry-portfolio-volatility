@@ -71,10 +71,9 @@ $PY scripts/24_third_hypotheses.py
 $PY scripts/29_fourth_hypotheses.py
 unset PVOL_UNIVERSE
 
-# checks over both universes: second data source, precision and global multiplicity, retuning
+# checks over both universes: second data source, retuning
 PVOL_UNIVERSE=etf $PY scripts/33_data_crosscheck.py
 PVOL_UNIVERSE=stocks $PY scripts/33_data_crosscheck.py
-$PY scripts/32_precision_multiplicity.py
 $PY scripts/34_tuning_check.py
 PVOL_UNIVERSE=etf $PY scripts/35_refit_summary.py
 PVOL_UNIVERSE=stocks $PY scripts/35_refit_summary.py
@@ -88,6 +87,19 @@ for u in etf stocks; do
     PVOL_UNIVERSE=$u $PY scripts/40_anchor_distance.py
     PVOL_UNIVERSE=$u $PY scripts/41_sorted_ties.py
 done
+# sixth series: V1 (ties of the sort), V2 (feature ablation of Linear), V3 (matched size), V5 (min-var optimizer),
+# V6 (dropout of MLP-sorted); V4 (results by test year) reads both universes
+for u in etf stocks; do
+    PVOL_UNIVERSE=$u $PY scripts/42_sixth_series.py V1 V3 V2
+    PVOL_UNIVERSE=$u $PY scripts/41_sorted_ties.py MLP-tsort
+    PVOL_UNIVERSE=$u $PY scripts/44_minvar_check.py
+    PVOL_UNIVERSE=$u $PY scripts/45_sixth_hypotheses.py
+    PVOL_UNIVERSE=$u $PY scripts/47_dropout_control.py
+    PVOL_UNIVERSE=$u $PY scripts/48_v6_hypotheses.py
+done
+$PY scripts/43_yearly.py
+# precision of every comparison and global multiplicity over all series
+$PY scripts/32_precision_multiplicity.py
 
 # tables and figures for both universes
 $PY scripts/10_tables_tex.py
@@ -95,4 +107,5 @@ $PY scripts/20_scoreboard.py
 $PY scripts/21_hypothesis_tables.py
 $PY scripts/30_fourth_tables.py
 $PY scripts/09_figures.py
+$PY scripts/46_supplement_tables.py
 bash scripts/collect_results.sh

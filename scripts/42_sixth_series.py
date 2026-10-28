@@ -1,4 +1,4 @@
-"""Sixth series (V1-V3), hypotheses and decision rules fixed before running (docs/JOURNAL.md, section 4g).
+"""Sixth series (V1-V3), hypotheses and decision rules fixed before running.
 
 V1: MLP sorted by descending weight with ties broken by asset index (MLP-tsort, settings of MLP-sorted).
 V2: Linear without one group of features (Linear-noasset, -noeuler, -nopairs, -noport) and with the portfolio-level

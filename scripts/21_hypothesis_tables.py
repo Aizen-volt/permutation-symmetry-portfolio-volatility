@@ -4,7 +4,7 @@ series (E1-E3), for both universes; built from results*/main/tables/*.csv only.
 hyp_accuracy.tex  H1 and H2 at every horizon (in-range block)
 hyp_other.tex     H3a-H3c and H4
 hyp_econ.tex      minimum variance and volatility targeting
-hyp_review*.tex   third series (R1-R4)
+hyp_third*.tex   third series (R1-R4)
 hyp_extra.tex     HE1-HE3
 hyp_fourth*.tex   fourth series (S1b, S2) and H2 against the ten classical models of the original design
 extra_levels.tex  QLIKE relative to EWMA of the networks under the training conditions of E1-E3
@@ -483,10 +483,10 @@ def third_series_tables():
              dict(hypothesis="R3 (aux: TTA vs single ordering)", h=5)),
             ("R4: Deep Sets with pair summaries", dict(hypothesis="R4")),
             ("R4 (auxiliary)", dict(hypothesis="R4 (aux)"))]
-    d = {u: load(root, "hypotheses_review.csv") for u, root in UNIVERSES}
-    parts = [("hyp_review", "tab:hyp_review", fams[:6], "Third series of experiments, R1 and R2 ($h=5$, in-range "
+    d = {u: load(root, "hypotheses_third.csv") for u, root in UNIVERSES}
+    parts = [("hyp_third", "tab:hyp_third", fams[:6], "Third series of experiments, R1 and R2 ($h=5$, in-range "
               "portfolios): Diebold--Mariano statistics and Holm-adjusted $p$-values."),
-             ("hyp_review2", "tab:hyp_review2", fams[6:], "Third series of experiments, R3 and R4 ($h=5$ unless stated, "
+             ("hyp_third2", "tab:hyp_third2", fams[6:], "Third series of experiments, R3 and R4 ($h=5$ unless stated, "
               "in-range portfolios): Diebold--Mariano statistics and Holm-adjusted $p$-values.")]
     for name, label, part, caption in parts:
         L = ["\\begin{table}[p]\\centering\\footnotesize\\setlength{\\tabcolsep}{4pt}",
@@ -513,8 +513,8 @@ def third_series_tables():
         (OUT / f"{name}.tex").write_text("\n".join(L), encoding="utf-8")
 
     # levels: what each cheap fix does to the unconstrained network
-    lev = {u: load(root, "review_levels.csv") for u, root in UNIVERSES}
-    s54 = load(Path(str(BASE) + "_stocks54"), "review_levels.csv")
+    lev = {u: load(root, "third_levels.csv") for u, root in UNIVERSES}
+    s54 = load(Path(str(BASE) + "_stocks54"), "third_levels.csv")
     rows = [("A. Fixed pool of 50 portfolios", None),
             ("MLP, fixed order", "MLP-P50"), ("MLP, shuffled order", "MLP-P50s"), ("MLP-sorted", "MLP-sorted-P50"),
             ("PE-Net", "PENet-P50"), ("Set Transformer", "SetTransformer-P50"),
@@ -539,7 +539,7 @@ def third_series_tables():
          "the cheap alternatives to architectural symmetry---a new random order in every draw from the pool, "
          "canonicalization by sorting, averaging over 8 orderings at prediction time---and of symmetric networks for "
          "reference. Deep Sets + pairs adds the weight-averaged correlation of each constituent with the others to its "
-         "element features.}\\label{tab:review_levels}",
+         "element features.}\\label{tab:third_levels}",
          "\\begin{tabular}{lrr}\\toprule",
          "Network & ETF & Stocks\\\\"]
     hz = 5
@@ -551,10 +551,10 @@ def third_series_tables():
         cells = [val(lev[u], hz, tag) for u, _ in UNIVERSES]
         L.append(f"\\quad {name} & " + " & ".join(cells) + "\\\\")
     L += ["\\bottomrule\\end{tabular}", "\\end{table}"]
-    (OUT / "review_levels.tex").write_text("\n".join(L), encoding="utf-8")
+    (OUT / "third_levels.tex").write_text("\n".join(L), encoding="utf-8")
 
     # R5: the 54-stock subsample
-    r5 = load(Path(str(BASE) + "_stocks54"), "hypotheses_review.csv")
+    r5 = load(Path(str(BASE) + "_stocks54"), "hypotheses_third.csv")
     L = ["\\begin{table}[t]\\centering\\footnotesize\\setlength{\\tabcolsep}{5pt}",
          "\\caption{Subsample of 54 of the 122 stocks (stratified by sector): H1 in the in-range block. QLIKE relative to "
          "EWMA of the symmetric network and of its counterpart, DM statistic and Holm-adjusted $p$-value (bold: symmetric "
