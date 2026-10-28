@@ -6,7 +6,8 @@ MLP-sorted is retrained in the main design (h = 5, seeds 0-2, every test year, t
 Reports, as in Table perm_main, the median and 99th percentile over portfolios and origins of the range of the
 log-variance forecast across the orderings, averaged over seeds. Writes results*/main/tables/sorted_ties.csv.
 
-Usage: [PVOL_UNIVERSE=stocks] python scripts/41_sorted_ties.py
+Usage: [PVOL_UNIVERSE=stocks] python scripts/41_sorted_ties.py [MLP-tsort]
+(the sixth series V1 passes MLP-tsort, sorted with ties broken by asset index; writes sorted_ties_MLP-tsort.csv)
 """
 import sys
 from pathlib import Path
@@ -22,7 +23,8 @@ from pvol.dataset import make_split, origins_in_year  # noqa: E402
 from pvol.experiment import Experiment, load_tuned_hp  # noqa: E402
 from pvol.train import predict_portfolios, train_model  # noqa: E402
 
-H, SEEDS, N_PORTS, N_PERM, NAME = 5, (0, 1, 2), 100, 5, "MLP-sorted"
+H, SEEDS, N_PORTS, N_PERM = 5, (0, 1, 2), 100, 5
+NAME = sys.argv[1] if len(sys.argv) > 1 else "MLP-sorted"
 
 ex = Experiment("main", load_panel())
 rng = np.random.default_rng(777)
@@ -32,7 +34,7 @@ for k in range(N_PERM):
     for p in base:
         o = rng.permutation(len(p["ids"]))
         perm.append(dict(ids=[p["ids"][i] for i in o], weights=[p["weights"][i] for i in o]))
-hp = load_tuned_hp()[NAME]
+hp = load_tuned_hp()["MLP-sorted"]
 rows = []
 for seed in SEEDS:
     parts = []
@@ -48,5 +50,5 @@ for seed in SEEDS:
     print(rows[-1], flush=True)
 out = pd.DataFrame(rows)
 out.loc["mean"] = out.mean()
-out.to_csv(RESULTS / "main" / "tables" / "sorted_ties.csv")
+out.to_csv(RESULTS / "main" / "tables" / ("sorted_ties.csv" if NAME == "MLP-sorted" else f"sorted_ties_{NAME}.csv"))
 print(out.round(4))

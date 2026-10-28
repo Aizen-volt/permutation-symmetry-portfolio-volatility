@@ -31,7 +31,8 @@ def perturbed_output(model, panel, t, S, w, perm, gru_len):
         return model(inp).double(), model(inp_p).double()
 
 
-@pytest.mark.parametrize("name", ["PortMLP", "DeepSets", "PENet", "SetTransformer", "SetGRU", "EQCov", "MLP-sorted", "DeepSetsP"])
+@pytest.mark.parametrize("name", ["PortMLP", "DeepSets", "PENet", "SetTransformer", "SetGRU", "EQCov", "MLP-sorted", "MLP-tsort", "DeepSetsP",
+                                  "Linear-noasset", "Linear-noeuler", "Linear-nopairs", "Linear-noport", "Linear-portonly"])
 def test_invariant_models(panel, name):
     p, split = panel
     torch.manual_seed(0)
@@ -73,6 +74,36 @@ def test_target_alignment(panel):
     w = torch.as_tensor([ports[j]["weights"]] * len(t_idx), device=DEV, dtype=torch.float32)
     _, y = p.batch(t, S, w, h=5)
     np.testing.assert_allclose(y.cpu().numpy(), Y[:, j], rtol=1e-4)
+
+
+def test_tie_broken_sort_with_equal_weights(panel):
+    p, split = panel
+    gen = torch.Generator(device=DEV).manual_seed(1)
+    t, S, _ = p.sample(64, 10, split.train, gen)
+    w = torch.full(S.shape, 0.1, device=DEV)
+    perm = torch.randperm(10, device=DEV)
+    out = {}
+    for name in ("MLP-sorted", "MLP-tsort"):
+        torch.manual_seed(0)
+        model = MODELS[name]().to(DEV).eval()
+        for m in model.modules():
+            if isinstance(m, torch.nn.Linear):
+                torch.nn.init.normal_(m.weight, std=0.05)
+        a, b = perturbed_output(model, p, t, S, w, perm, 0)
+        out[name] = (a - b).abs().max().item()
+    assert out["MLP-tsort"] < 1e-4 and out["MLP-sorted"] > 1e-3, out
+
+
+def test_linear_full_features_unchanged(panel):
+    p, split = panel
+    gen = torch.Generator(device=DEV).manual_seed(1)
+    t, S, w = p.sample(32, 9, split.train, gen)
+    inp, _ = p.batch(t, S, w)
+    from pvol.models import invariant_pools, node_inputs
+    c = torch.einsum("bklf,bl->bkf", inp["pair"], inp["w"])
+    ref = torch.cat([invariant_pools(torch.cat([node_inputs(inp), c], -1), inp), inp["g"]], -1)
+    lin = MODELS["Linear"]()
+    assert lin.lin.in_features == ref.shape[1] and torch.equal(lin.features(inp), ref)
 
 
 @pytest.mark.parametrize("h", [1, 5, 22])

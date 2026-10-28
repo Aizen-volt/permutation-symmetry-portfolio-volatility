@@ -5,7 +5,8 @@
    of freedom) and the smallest difference the test detects with 80% power at the 5% level without the Holm correction,
    (t_0.975 + z_0.8) SE; both in percentage points of the in-range EWMA loss, as the effects of the scoreboard.
 2. Multiplicity: the Holm correction over all comparisons of all families of both universes at once (instead of within
-   each family) and the Benjamini-Hochberg false discovery rate over the same set; which significant verdicts survive.
+   each family), including the fifth and sixth series (T, U, V, with V6b; not the other auxiliary or reference rows), and the
+   Benjamini-Hochberg false discovery rate over the same set; which significant verdicts survive.
 
 Output: results/main/tables/precision.csv, results/main/tables/global_multiplicity.csv
 """
@@ -26,6 +27,8 @@ sys.argv = sys.argv[:1]
 _spec.loader.exec_module(hyp)
 
 ECONOMIC = sb.E
+LATER = (("hypotheses_fifth.csv", ("T1", "T2", "T3", "U1", "U2")), ("hypotheses_sixth.csv", ("V1a", "V1b", "V2", "V3")),
+         ("hypotheses_v6.csv", ("V6a", "V6b (aux: sorted d0.3 vs MLP)")))
 
 
 def family_rows(root, fname, flt):
@@ -86,6 +89,16 @@ if __name__ == "__main__":
                     prec.append(dict(part=part, family=lbl, universe=u, h=h, model=m, benchmark=b, effect=ef,
                                      ci_lo=ef - tq * s, ci_hi=ef + tq * s, halfwidth=tq * s,
                                      mde80=(tq + stats.norm.ppf(0.8)) * s))
+    for u, root in sb.UNIVERSES:
+        for fname, keep in LATER:
+            f = root / "main" / "tables" / fname
+            if not f.exists():
+                continue
+            d = pd.read_csv(f)
+            for r in d[d.hypothesis.isin(keep)].itertuples():
+                allrows.append(dict(part="later series", family=f"{r.hypothesis}, $h={r.h}$, {r.block}", universe=u,
+                                    model=r.model, benchmark=r.benchmark, mean_diff=r.mean_diff, p=r.p,
+                                    p_holm=r.p_holm, verdict=r.verdict))
     P = pd.DataFrame(prec)
     out = sb.BASE / "main" / "tables"
     P.to_csv(out / "precision.csv", index=False)

@@ -34,7 +34,7 @@ def training_sample(panel, t_range, h, seed):
         N = int(rng.integers(2, 21))
         t, S, w = panel.sample(CHUNK, N, t_range, gen, alpha=float(rng.choice([0.3, 1.0, 3.0])))
         inp, y = panel.batch(t, S, w, h=h)
-        F.append(LinearSet.features(inp).cpu().numpy())
+        F.append(LinearSet().features(inp).cpu().numpy())
         Y.append((y.clamp_min(1e-12) / torch.exp(inp["base"])).cpu().numpy())
     return np.concatenate(F)[:N_TRAIN], np.concatenate(Y)[:N_TRAIN]
 
@@ -55,7 +55,7 @@ def predict(panel, gbm, portfolios, t_idx):
         res = []
         for a in range(0, len(tt), step):
             inp, _ = panel.batch(tt[a : a + step], SS[a : a + step], WW[a : a + step])
-            ratio = gbm.predict(LinearSet.features(inp).cpu().numpy())
+            ratio = gbm.predict(LinearSet().features(inp).cpu().numpy())
             res.append(inp["base"].cpu().numpy() + np.log(np.maximum(ratio, 1e-6)))
         out[:, cols] = np.concatenate(res).reshape(len(t_idx), len(cols))
     return out

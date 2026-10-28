@@ -19,7 +19,7 @@ BASE = Path(str(RESULTS).replace("_stocks", ""))
 UNIVERSES = [("ETF", BASE), ("Stocks", Path(str(BASE) + "_stocks"))]
 LAB = {"SetTransformer": "Set Transformer", "DeepSets": "Deep Sets", "EQCov": "EQ-Cov", "PENet": "PE-Net",
        "SetGRU": "Set-GRU", "GJR": "GJR-GARCH"}
-MODELS = ["EWMA", "HAR", "LogHAR-X", "HEAVY", "GJR", "DCC", "Linear", "GBM", "MLP", "GRU", "DeepSets", "PENet",
+MODELS = ["EWMA", "HAR", "LogHAR-X", "HEAVY", "GJR", "DCC", "Linear", "MLP", "GRU", "DeepSets", "PENet",
           "SetTransformer", "SetGRU", "EQCov"]
 H = (1, 5, 22)
 
@@ -49,7 +49,7 @@ def losses():
                 cells += ["--" if v is None else (f"\\textbf{{{v:.3f}}}" if abs(v - b) < 5e-4 else f"{v:.3f}")
                           for v, b in zip(col, best)]
             L.append(f"{LAB.get(m, m)} & " + " & ".join(cells) + "\\\\")
-            if m in ("DCC", "GBM"):
+            if m in ("DCC", "Linear"):
                 L.append("\\addlinespace")
     L += ["\\bottomrule\\end{tabular}", "\\end{table}"]
     (OUT / "fourth_losses.tex").write_text("\n".join(L), encoding="utf-8")
@@ -81,7 +81,7 @@ def tests():
     L = ["\\begin{table}[t]\\centering\\footnotesize\\setlength{\\tabcolsep}{3pt}",
          "\\caption{H1 and H2 under alternative tests, samples and protocols: comparisons decided in favor of the "
          "symmetric network out of five; ($-k$): $k$ against it; `--': not run. Excl.\\ 2020 (2026): origins outside "
-         "that year; global Holm: over all 427 comparisons; GW: conditional Giacomini--White test (constant and lagged "
+         "that year; global Holm: over all 625 comparisons; GW: conditional Giacomini--White test (constant and lagged "
          "differential); protocol B, refit: Section~\\ref{sec:res:robust}. Seed pairs: share of seed pairs in which the "
          "symmetric network has the lower loss (100 pairs for stocks at $h=1$, otherwise 9).}"
          "\\label{tab:fourth_tests}",

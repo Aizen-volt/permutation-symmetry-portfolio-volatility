@@ -93,7 +93,14 @@ Evaluation and tests (tables in `results*/<experiment>/tables/`)
 | `38_fifth_hypotheses.py` | tests of the fifth series (T1-T4, U1-U2), best validation epochs |
 | `39_equivalence.py` | confidence intervals and equivalence tests (TOST, margins of 1 and 2 points) for S1b and H1 |
 | `40_anchor_distance.py` | distance of the learned forecasts from the EWMA anchor and from the Linear correction |
-| `41_sorted_ties.py` | permutation consistency of MLP-sorted on equally weighted portfolios (retrains MLP-sorted, h=5) |
+| `41_sorted_ties.py` | permutation consistency of MLP-sorted (or of the model given as argument, e.g. `MLP-tsort`) on equally weighted portfolios (retrains it, h=5) |
+| `42_sixth_series.py` | sixth series: V1 (MLP sorted by weight, ties broken by asset index), V2 (Linear without one feature group), V3 (networks of matched size) |
+| `43_yearly.py` | V4: losses and Diebold-Mariano tests per test year |
+| `44_minvar_check.py` | V5: minimum-variance weights from the exact solution (covariance models) and from several starts (networks) against the stored weights |
+| `45_sixth_hypotheses.py` | tests of the sixth series (V1-V3) |
+| `47_dropout_control.py` | V6: MLP-sorted retrained with the dropout of the MLP under the conditions of R2 |
+| `48_v6_hypotheses.py` | tests of V6 |
+| `46_supplement_tables.py` | tables of the supplementary material (all models, secondary families, equivalence, series T, U, V, economic evaluation, cost and hyper-parameters) in `paper/supplement/tables/` |
 
 Every hypothesis is decided by the same rule: model a is more accurate than model b if its mean QLIKE is lower and the
 Diebold-Mariano test with the Harvey-Leybourne-Newbold correction rejects at 5% after a Holm correction within the

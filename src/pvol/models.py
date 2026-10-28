@@ -9,6 +9,7 @@ Symmetry classes (w.r.t. a joint permutation of the assets in a portfolio):
   MLPConcat not invariant: constituents are concatenated into fixed slots (random order)
   MLPSorted invariant by canonicalisation: slots ordered by descending weight
   MLP-idsort invariant by canonicalisation: slots ordered by asset index, unrelated to the weights (fifth series, U)
+  MLP-tsort invariant by canonicalisation: descending weight, ties broken by asset index (exact also for equal weights; V1)
   GRUConcat not invariant: recurrent model over the concatenated slot features
   DeepSets  invariant: rho(pool_i phi(x_i))  (Zaheer et al., 2017)
   PENet     equivariant layers with correlation-gated pairwise messages + invariant pooling
@@ -70,14 +71,19 @@ class PortMLP(nn.Module):
         return inp["base"] + self.net(inp["g"]).squeeze(-1)
 
 
-def pad_slots(inp, n_slots, sort_by_weight=False, sort_by_id=False):
+def pad_slots(inp, n_slots, sort_by_weight=False, sort_by_id=False, tie_by_id=False):
     x = torch.cat([inp["x_asset"], inp["x_port"]], -1)
     p = inp["pair"]
     B, N, Fx = x.shape
     if N > n_slots:
         raise ValueError(f"portfolio has {N} assets but the model has only {n_slots} slots")
     if sort_by_weight or sort_by_id:
-        order = inp["w"].argsort(1, descending=True) if sort_by_weight else inp["ids"].argsort(1)
+        if sort_by_weight and tie_by_id:  # stable sort by weight of the constituents listed by asset index
+            o1 = inp["ids"].argsort(1)
+            o2 = torch.sort(torch.gather(inp["w"], 1, o1), dim=1, descending=True, stable=True).indices
+            order = torch.gather(o1, 1, o2)
+        else:
+            order = inp["w"].argsort(1, descending=True) if sort_by_weight else inp["ids"].argsort(1)
         x = torch.gather(x, 1, order[:, :, None].expand(B, N, Fx))
         p = p[torch.arange(B, device=p.device)[:, None, None], order[:, :, None], order[:, None, :]]
     xp = x.new_zeros(B, n_slots, Fx + 1)
@@ -90,15 +96,15 @@ def pad_slots(inp, n_slots, sort_by_weight=False, sort_by_id=False):
 
 
 class MLPConcat(nn.Module):
-    def __init__(self, n_slots=20, hidden=(512, 256), dropout=0.1, sort_by_weight=False, sort_by_id=False):
+    def __init__(self, n_slots=20, hidden=(512, 256), dropout=0.1, sort_by_weight=False, sort_by_id=False, tie_by_id=False):
         super().__init__()
-        self.n_slots, self.sort, self.sort_id = n_slots, sort_by_weight, sort_by_id
+        self.n_slots, self.sort, self.sort_id, self.tie_id = n_slots, sort_by_weight, sort_by_id, tie_by_id
         d_in = n_slots * (F_ASSET + F_PORT + 1) + n_slots * (n_slots - 1) // 2 * F_PAIR + F_G
         self.net = mlp(d_in, hidden, 1, dropout)
         zero_last(self.net)
 
     def forward(self, inp):
-        xp, pu = pad_slots(inp, self.n_slots, self.sort, self.sort_id)
+        xp, pu = pad_slots(inp, self.n_slots, self.sort, self.sort_id, self.tie_id)
         z = torch.cat([xp.flatten(1), pu.flatten(1), inp["g"]], -1)
         return inp["base"] + self.net(z).squeeze(-1)
 
@@ -324,18 +330,36 @@ class LinearSet(nn.Module):
     """Linear benchmark on the information of the networks (fourth series, S1): the residual on the log EWMA forecast is
     linear in the portfolio-level features and in the mean, weight-weighted and risk-contribution-weighted averages of the
     element features (including the weight-averaged correlations c_k = sum_l w_l p_kl). Permutation invariant; separates
-    the contribution of the information from that of the non-linearity."""
+    the contribution of the information from that of the non-linearity.
 
-    def __init__(self, **kw):
+    drop removes feature groups (sixth series, V2): "asset" the asset features x_asset, "euler" the Euler contributions
+    and the risk-contribution-weighted average, "pairs" the correlation summaries (c_k and corr(asset, portfolio)),
+    "port" the portfolio-level backcast variances g; port_only keeps only g (a linear PortMLP)."""
+
+    def __init__(self, drop=(), port_only=False, **kw):
         super().__init__()
-        self.lin = nn.Linear(3 * (F_NODE + F_PAIR) + F_G, 1)
+        self.drop, self.port_only = set(drop), port_only
+        k = lambda g: g not in self.drop
+        n_el = k("asset") * F_ASSET + 1 + 2 * k("euler") + k("pairs") + k("port") * F_G + k("pairs") * F_PAIR
+        d = F_G if port_only else (3 if k("euler") else 2) * n_el + k("port") * F_G
+        self.lin = nn.Linear(d, 1)
         nn.init.zeros_(self.lin.weight)
         nn.init.zeros_(self.lin.bias)
 
-    @staticmethod
-    def features(inp):
-        c = torch.einsum("bklf,bl->bkf", inp["pair"], inp["w"])
-        return torch.cat([invariant_pools(torch.cat([node_inputs(inp), c], -1), inp), inp["g"]], -1)
+    def features(self, inp):
+        if self.port_only:
+            return inp["g"]
+        k = lambda g: g not in self.drop
+        B, N, _ = inp["x_asset"].shape
+        cols = [0] + [1, 2] * k("euler") + [3] * k("pairs")
+        parts = [inp["x_asset"]] * k("asset") + [inp["x_port"][..., cols]]
+        parts += [inp["g"][:, None, :].expand(B, N, F_G)] * k("port")
+        parts += [torch.einsum("bklf,bl->bkf", inp["pair"], inp["w"])] * k("pairs")
+        h = torch.cat(parts, -1)
+        pools = invariant_pools(h, inp)
+        if not k("euler"):
+            pools = pools[:, : 2 * h.shape[-1]]
+        return torch.cat([pools] + [inp["g"]] * k("port"), -1)
 
     def forward(self, inp):
         return inp["base"] + self.lin(self.features(inp)).squeeze(-1)
@@ -347,6 +371,12 @@ MODELS = {
     "MLP": MLPConcat,
     "MLP-sorted": lambda **kw: MLPConcat(sort_by_weight=True, **kw),
     "MLP-idsort": lambda **kw: MLPConcat(sort_by_id=True, **kw),
+    "MLP-tsort": lambda **kw: MLPConcat(sort_by_weight=True, tie_by_id=True, **kw),
+    "Linear-noasset": lambda **kw: LinearSet(drop=("asset",)),
+    "Linear-noeuler": lambda **kw: LinearSet(drop=("euler",)),
+    "Linear-nopairs": lambda **kw: LinearSet(drop=("pairs",)),
+    "Linear-noport": lambda **kw: LinearSet(drop=("port",)),
+    "Linear-portonly": lambda **kw: LinearSet(port_only=True),
     "GRU": GRUConcat,
     "DeepSets": DeepSets,
     "DeepSetsP": DeepSetsP,
@@ -355,5 +385,5 @@ MODELS = {
     "SetGRU": SetGRU,
     "EQCov": EQCov,
 }
-SLOT_MODELS = {"MLP", "MLP-sorted", "MLP-idsort", "GRU"}  # cannot score portfolios larger than n_slots
+SLOT_MODELS = {"MLP", "MLP-sorted", "MLP-idsort", "MLP-tsort", "GRU"}  # cannot score portfolios larger than n_slots
 SEQ_MODELS = {"GRU", "SetGRU"}  # need the last 22 days of asset features (x_seq)
