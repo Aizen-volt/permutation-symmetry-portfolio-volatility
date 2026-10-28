@@ -178,7 +178,8 @@ def perm_table_both(exp="main"):
               and any(vals.get((u, m, h), (0, 0))[1] > 1e-4 for u, _ in UNIVERSES for h in HORIZONS)]
     L = ["\\begin{table}[t]\\centering\\footnotesize\\setlength{\\tabcolsep}{5pt}",
          "\\caption{Permutation consistency: range of the log-variance forecast of the same 100 ten-asset portfolios "
-         "listed in five orders, median (A) and 99th percentile (B); 0.07 means forecasts about 7\\% apart. Invariant "
+         "listed in five orders, median (A) and 99th percentile (B); a range $r$ means that the largest forecast exceeds "
+         "the smallest by $e^r-1$ (0.07: 7\\%; the percentages in the text are $e^r-1$). Invariant "
          "models (range $<10^{-6}$) are not shown.}"
          "\\label{tab:perm}",
          "\\begin{tabular}{lrrrrrr}\\toprule",

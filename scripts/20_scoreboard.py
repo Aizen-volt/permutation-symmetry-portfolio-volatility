@@ -24,9 +24,6 @@ F4 = "hypotheses_fourth.csv"
 # main text: the families of the three research questions
 ROWS = [
     ("RQ1: architecture against learned symmetry", None, None),
-    ("H1: symmetric vs counterpart, $h=1$", "hypotheses.csv", dict(hypothesis="H1", h=1, block="in-range")),
-    ("H1: symmetric vs counterpart, $h=5$", "hypotheses.csv", dict(hypothesis="H1", h=5, block="in-range")),
-    ("H1: symmetric vs counterpart, $h=22$", "hypotheses.csv", dict(hypothesis="H1", h=22, block="in-range")),
     ("HE1: raw inputs", "hypotheses_extra.csv", dict(hypothesis="HE1")),
     ("HE2: pool of 50 portfolios", "hypotheses_extra.csv", dict(hypothesis="HE2", block="in-range, pool 50")),
     ("HE2: pool of 500 portfolios", "hypotheses_extra.csv", dict(hypothesis="HE2", block="in-range, pool 500")),
@@ -46,6 +43,12 @@ ROWS = [
     ("S2: R3 with ten seeds, $h=1$", F4, dict(hypothesis="S2-R3", h=1)),
     ("S2: R5 with ten seeds, $h=1$", F4, dict(hypothesis="S2-R5", h=1), "_stocks54"),
     ("RQ3: flexibility and classical benchmarks", None, None),
+    ("W1: vs invariant linear, raw inputs", "hypotheses_seventh.csv", dict(hypothesis="W1")),
+]
+# the main comparisons, shown in the main text as a forest plot (scripts/53_forest_plot.py)
+ROWS_MAIN = [
+    *[(f"H1: symmetric vs counterpart, $h={h}$", "hypotheses.csv", dict(hypothesis="H1", h=h, block="in-range"))
+      for h in (1, 5, 22)],
     *[(f"S1b: symmetric vs invariant linear, $h={h}$", F4, dict(hypothesis="S1b", h=h, benchmark="Linear"))
       for h in (1, 5, 22)],
     *[(f"H2: symmetric vs best classical, $h={h}$", "hypotheses.csv", dict(hypothesis="H2", h=h, block="in-range"))
@@ -53,7 +56,8 @@ ROWS = [
 ]
 # secondary families (robustness section of the article)
 ROWS_SUPP = [
-    *[(f"H2 (ten original classical models), $h={h}$", "hypotheses_h2orig.csv",
+    *ROWS_MAIN,
+    *[(f"H2 (without the four added classical models), $h={h}$", "hypotheses_h2orig.csv",
        dict(hypothesis="H2", h=h, block="in-range")) for h in (1, 5, 22)],
     ("H1: minimum-variance portfolios", E, dict(hypothesis="H1-minvar")),
     *[(f"H1: volatility targeting, $h={h}$", E, dict(hypothesis="H1-voltarget", h=h)) for h in (1, 5, 22)],
@@ -67,7 +71,7 @@ ROWS_SUPP = [
     ("HE2d: larger advantage with 50 than 500", "hypotheses_extra.csv", dict(hypothesis="HE2d")),
     ("HE3: portfolios with $N>20$", "hypotheses_extra.csv", dict(hypothesis="HE3")),
     ("R4: Deep Sets + pairs vs MLP, raw inputs", R, dict(hypothesis="R4")),
-    *[(f"S1b: symmetric vs GBM, $h={h}$", F4, dict(hypothesis="S1b", h=h, benchmark="GBM")) for h in (1, 5, 22)],
+    *[(f"S1c: symmetric vs GBM, $h={h}$", F4, dict(hypothesis="S1b", h=h, benchmark="GBM")) for h in (1, 5, 22)],
 ]
 
 
@@ -132,7 +136,8 @@ def write(rows, name, label, caption):
          "mean QLIKE differential (first model minus second) in points of the EWMA loss; negative favors the symmetric "
          "network" + ("" if name == "scoreboard" else " (H3a, H4: the stated condition); no effect size for the economic "
                       "comparisons") + ". $p_{\\text{Holm}}$: range of the Holm-adjusted $p$-values."
-         + ("" if name != "scoreboard" else " $^{a}$Shuffled counterpart vs the same network in fixed order.")
+         + ("" if name != "scoreboard" else " $^{a}$Shuffled counterpart vs the same network in fixed order; here the "
+            "verdict counts comparisons decided in favor of the shuffled counterpart, and negative effects favor it.")
          + "}\\label{" + label + "}",
          "\\begin{tabular}{lcrrcrr}\\toprule",
          " & " + " & ".join(f"\\multicolumn{{3}}{{c}}{{{u}}}" for u, _ in UNIVERSES) + "\\\\",
@@ -155,6 +160,7 @@ def write(rows, name, label, caption):
 
 if __name__ == "__main__":
     write(ROWS, "scoreboard", "tab:scoreboard",
-          "Verdicts of the hypotheses; H1 and H2 are confirmatory. R5 and its S2 repetition use 54 stocks.")
+          "Verdicts of the exploratory hypotheses of the three research questions (the confirmatory H1 and H2 and the "
+          "comparison S1b with Linear are shown in Figure~\\ref{fig:forest}). R5 and its S2 repetition use 54 stocks.")
     write(ROWS_SUPP, "scoreboard_supp", "tab:scoreboard_supp",
           "Verdicts of the secondary families, both universes.")

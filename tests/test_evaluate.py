@@ -63,6 +63,16 @@ def test_dm_test_drops_nonfinite(rng):
     assert np.allclose(a, b)
 
 
+def test_dm_test_ewc_size_and_power(rng):
+    rej = []
+    for _ in range(200):
+        e = rng.standard_normal(1022)
+        rej.append(ev.dm_test_ewc(np.convolve(e, np.ones(22), "valid"))[1] < 0.05)  # MA(21), as for h = 22
+    assert np.mean(rej) < 0.09
+    stat, p = ev.dm_test_ewc(np.concatenate([rng.standard_normal(500) - 0.5, [np.nan]]))
+    assert stat < 0 and p < 1e-6
+
+
 def test_dm_test_overlapping_targets(rng):
     """MA(h-1) differentials: the HAC variance keeps the size near nominal."""
     rej = []

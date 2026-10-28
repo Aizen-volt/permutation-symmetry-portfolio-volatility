@@ -93,6 +93,20 @@ def dm_test(d, h):
     return stat, p
 
 
+def dm_test_ewc(d):
+    """Two-sided DM test with fixed-smoothing (EWC) long-run variance: nu = floor(0.4 T^(2/3)) cosine projections,
+    t distribution with nu degrees of freedom (Lazarus, Lewis, Stock and Watson 2018); returns (stat, p-value)."""
+    d = np.asarray(d, dtype=np.float64)
+    d = d[np.isfinite(d)]
+    T = len(d)
+    nu = int(np.floor(0.4 * T ** (2 / 3)))
+    t = np.arange(1, T + 1)
+    cos = np.cos(np.pi * np.arange(1, nu + 1)[:, None] * (t[None, :] - 0.5) / T)
+    lam = np.sqrt(2 / T) * cos @ (d - d.mean())
+    stat = np.sqrt(T) * d.mean() / np.sqrt(np.mean(lam ** 2))
+    return stat, 2 * stats.t.sf(abs(stat), df=nu)
+
+
 # Model Confidence Set (Hansen, Lunde, Nason 2011)
 def mcs(loss_df, size=0.10, reps=5000, block=None, seed=0, method="R"):
     """MCS p-values; method "R" (range statistic, main tables) or "max" (T_max statistic)."""

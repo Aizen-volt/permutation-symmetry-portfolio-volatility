@@ -45,7 +45,7 @@ if __name__ == "__main__":
                 e = L["EWMA"][k].mean()
                 for m in NETS + ["Linear", "HEAVY", best]:
                     levels.append(dict(h=h, year=y, model=m, best_classical=m == best, qlike_rel_ewma=L[m][k].mean() / e))
-                for a, b in PAIRS:
+                for a, b in PAIRS + ([("Linear", best)] if best != "HEAVY" else []):  # W5: best classical of h
                     d = L[a][k] - L[b][k]
                     stat, p = ev.dm_test(d, h)
                     pairs.append(dict(h=h, year=y, model=a, benchmark=b, mean_diff_pp=100 * d.mean() / e, dm=stat, p=p))

@@ -46,8 +46,8 @@ UNIVERSES = [("ETF", BASE, "etf"), ("Stocks", Path(str(BASE) + "_stocks"), "stoc
 OUT = ROOT / "paper" / "supplement" / "tables"
 HS = (1, 5, 22)
 NAME = {"DeepSets": "Deep Sets", "DeepSets-L": "Deep Sets, $d=400$", "MLP-small": "MLP, $(16,16)$", "PENet": "PE-Net",
-        "SetTransformer": "Set Transformer", "SetGRU": "Set-GRU", "EQCov": "EQ-Cov", "PortMLP": "Port-MLP",
-        "EWMANLS": "EWMA-NLS", "LW": "LW", "Linear-noasset": "without element features",
+        "SetTransformer": "Set Transformer", "SetGRU": "Set-GRU", "EQCov": "EQ-Cov", "PortMLP": "PortMLP",
+        "EWMANLS": "EWMA-NLS", "LW": "LW", "GJR": "GJR-GARCH", "Linear-noasset": "without element features",
         "Linear-noeuler": "without Euler contributions", "Linear-nopairs": "without correlation summaries",
         "Linear-noport": "without portfolio-level features", "Linear-portonly": "portfolio-level features only"}
 nm = lambda m: NAME.get(m, m)
@@ -201,17 +201,21 @@ def table_yearly():
         d = pd.read_csv(root / "main" / "tables" / "yearly_pairs.csv")
         years = sorted(d.year.unique())
         body.append(f"\\multicolumn{{{len(years) + 1}}}{{l}}{{\\emph{{{u}}}}}\\\\")
-        for (a, b) in (("PENet", "MLP"), ("SetGRU", "GRU"), ("Linear", "HEAVY")):
+        for (a, b) in d[["model", "benchmark"]].drop_duplicates().itertuples(index=False):
             for h in HS:
                 s = d[(d.model == a) & (d.benchmark == b) & (d.h == h)].set_index("year")
+                if s.empty:
+                    continue
                 vals = [f(s.loc[y, "mean_diff_pp"], 1) + ("$^*$" if s.loc[y, "p"] < 0.05 else "") for y in years]
-                body.append(f"{nm(a)} $-$ {b}, $h={h}$ & " + " & ".join(vals) + "\\\\")
+                body.append(f"{nm(a)} $-$ {nm(b)}, $h={h}$ & " + " & ".join(vals) + f" & {f(s.mean_diff_pp.median(), 1)}\\\\")
         body.append("\\addlinespace")
     body.pop()
     write("supp_yearly", "V4, results by test year: mean in-range QLIKE difference in points of that year's EWMA "
-          "loss (negative: the first model is more accurate); $^*$: unadjusted Diebold--Mariano $p<0.05$ within the "
-          "year (descriptive, no correction). 2026: January to the end of the sample.", "tab:supp_yearly",
-          "l" + "r" * len(years), ["Comparison & " + " & ".join(str(y) for y in years) + "\\\\"], body)
+          "loss (negative: the first model is more accurate) and its median over the years; $^*$: unadjusted "
+          "Diebold--Mariano $p<0.05$ within the year (descriptive, no correction). One month ahead Linear is also "
+          "compared with the best classical model of that horizon (HAR for the funds, GJR-GARCH for the stocks). 2026: "
+          "January to the end of the sample.", "tab:supp_yearly",
+          "l" + "r" * (len(years) + 1), ["Comparison & " + " & ".join(str(y) for y in years) + " & median\\\\"], body)
 
 
 # ---------------------------------------------------------------- further tables: results reported in the text only
@@ -403,8 +407,9 @@ def table_economic():
                 vals += ([f(100 * x.hit_rate.iloc[0], 2), f(100 * x.kupiec_reject_share.iloc[0], 0)] if len(x)
                          else ["--"] * 2)
         body.append(nm2(m) + " & " + " & ".join(vals) + "\\\\")
-    write("supp_var_alt", "One-day value-at-risk at the 1\\% level with Student-$t$ quantiles and with filtered "
-          "historical simulation (FHS): hit rate and share of portfolios for which the unconditional coverage test "
+    write("supp_var_alt", "One-day value-at-risk at the 1\\% level with Student-$t$ quantiles (unit-variance $t_\\nu$, "
+          "$\\nu=4+6/\\kappa$ from the excess kurtosis $\\kappa$ of the last 250 standardized returns, bounded to "
+          "$[4.1, 30]$) and with filtered historical simulation (FHS) from the same 250 returns: hit rate and share of portfolios for which the unconditional coverage test "
           "of Kupiec rejects at 5\\% (both in per cent).", "tab:supp_var_alt", "l" + "rrrr" * 2,
           ["Model & \\multicolumn{4}{c}{ETF} & \\multicolumn{4}{c}{Stocks}\\\\",
            "\\cmidrule(lr){2-5}\\cmidrule(lr){6-9}",
@@ -504,10 +509,106 @@ def table_v6():
           two_universe_header("", ["$\\Delta_{0.1}$", "$p$", "$\\Delta_{0.3}$", "$p$"]), body)
 
 
+def table_seventh():
+    """Series W: Linear with raw inputs (W1), fixed-smoothing tests (W3), SPA (W2), and descriptive tables (W5)."""
+    H7 = {u: pd.read_csv(root / "main" / "tables" / "hypotheses_seventh.csv") for u, root, _ in UNIVERSES}
+    body = []
+    for m in ("DeepSets", "DeepSetsP", "PENet", "SetTransformer", "SetGRU", "MLP", "GRU"):
+        row = []
+        for u, root, _ in UNIVERSES:
+            d = H7[u]
+            r = with_effects(d[d.hypothesis.str.startswith("W1") & (d.model == m + "-RAW")], root).iloc[0]
+            row += [f(r.eff), f"[{f(r.lo)}, {f(r.hi)}]", pval(r.p_holm) if pd.notna(r.p_holm) else "--"]
+        lbl = {"DeepSetsP": "Deep Sets + pairs"}.get(m, nm(m))
+        body.append(lbl + " & " + " & ".join(row) + "\\\\")
+    write("supp_w1", "W1, raw inputs ($h=5$): difference of each network with raw inputs from Linear with raw inputs, in "
+          "points of the EWMA loss ($\\Delta<0$: the network is more accurate), with 95\\% confidence interval and "
+          "Holm-adjusted $p$ over the five symmetric networks (MLP and GRU descriptive).", "tab:supp_w1", "l" + "rrr" * 2,
+          two_universe_header("", ["$\\Delta$", "95\\% CI", "$p_{\\text{Holm}}$"]), body)
+
+    def count(d):
+        good, bad = (d.verdict == "more accurate").sum(), (d.verdict == "less accurate").sum()
+        return f"{good}/{len(d)}" + (f" ($-${bad})" if bad else "")
+    base = {u: (pd.read_csv(root / "main" / "tables" / "hypotheses.csv"),
+                pd.read_csv(root / "main" / "tables" / "hypotheses_fourth.csv")) for u, root, _ in UNIVERSES}
+    body = []
+    for fam in ("H1", "S1b", "H2"):
+        for h in HS:
+            row = []
+            for u in H7:
+                hy, f4 = base[u]
+                dm = (f4[(f4.hypothesis == "S1b") & (f4.benchmark == "Linear") & (f4.h == h) & (f4.block == "in-range")]
+                      if fam == "S1b" else hy[(hy.hypothesis == fam) & (hy.h == h) & (hy.block == "in-range")])
+                ew = H7[u][(H7[u].hypothesis == f"W3-{fam}") & (H7[u].h == h)]
+                row += [count(dm), count(ew)]
+            body.append(f"{fam}, $h={h}$ & " + " & ".join(row) + "\\\\")
+    sz = pd.read_csv(BASE / "main" / "tables" / "ewc_size.csv")
+    write("supp_ewc", "W3, H1, S1b and H2 with the Newey--West (DM) and the fixed-smoothing (EWC, "
+          "$\\nu=\\lfloor0.4T^{2/3}\\rfloor$ cosine terms, $t_\\nu$ reference) long-run variance: comparisons decided "
+          "in favor of the symmetric network out of five; ($-k$): $k$ against it. In a simulation with MA($h-1$) "
+          "differentials of the length of the test period (300 replications) the size at 5\\% is "
+          + ", ".join(f"{100 * r.size_dm:.1f}" for r in sz.itertuples()) + "\\% for DM and "
+          + ", ".join(f"{100 * r.size_ewc:.1f}" for r in sz.itertuples()) + "\\% for EWC at $h=1,5,22$.",
+          "tab:supp_ewc", "lcccc",
+          two_universe_header("", ["DM", "EWC"]), body)
+
+    body = []
+    for h in HS:
+        row = []
+        for u, root, _ in UNIVERSES:
+            s = pd.read_csv(root / "main" / "tables" / "spa.csv").query("h == @h")
+            worst = s.loc[s.p_consistent.idxmax()]
+            row += [f"{int((s.p_consistent < 0.05).sum())}/{len(s)}", f"{nm2(worst.benchmark)} ({f(worst.p_consistent, 3)})"]
+        body.append(f"$h={h}$ & " + " & ".join(row) + "\\\\")
+    write("supp_spa", "W2, test of superior predictive ability (Hansen, 2005; studentized, stationary bootstrap, 5,000 "
+          "replications) with each classical model as the benchmark and the five symmetric networks as the "
+          "alternatives: benchmarks for which the null hypothesis that no network beats it is rejected at 5\\%, and "
+          "the benchmark with the largest $p$-value (consistent $p$).", "tab:supp_spa", "lllll",
+          two_universe_header("", ["rejected", "hardest benchmark ($p$)"]), body)
+
+    groups = [("N5", "$N=5$"), ("N10", "$N=10$"), ("N20", "$N=20$"), ("N10-conc", "conc."), ("N10-EW", "equal")]
+    body = []
+    for h in (1, 5):
+        body.append(f"\\multicolumn{{11}}{{l}}{{\\emph{{$h={h}$}}}}\\\\")
+        L = {u: pd.read_csv(root / "main" / "tables" / f"losses_h{h}.csv") for u, root, _ in UNIVERSES}
+        for m in ("HEAVY", "Linear", "MLP", "MLP-sorted", "DeepSets", "PENet", "SetTransformer", "EQCov"):
+            row = []
+            for u in L:
+                d = L[u].set_index(["block", "model"]).qlike_rel_ewma
+                row += [f(d.get((g, m)), 3) for g, _ in groups]
+            body.append(nm2(m) + " & " + " & ".join(row) + "\\\\")
+    write("supp_groups", "In-range QLIKE relative to EWMA by portfolio group: ten-asset portfolios with concentrated and "
+          "with equal weights and portfolios of 5, 10 and 20 assets (the MLP fills its first $N$ slots, so the last "
+          "slots are trained only on the larger portfolios).", "tab:supp_groups", "l" + "r" * 10,
+          two_universe_header("", [g for _, g in groups]), body)
+
+    fy = pd.read_csv(BASE / "main" / "tables" / "fy_quantiles.csv")
+    body = [nm2(r.model) + " & " + " & ".join(f(getattr(r, c), 2) for c in ("q1", "q50", "q99", "q99_9", "max"))
+            + f" & {f(100 * r.share_above_10, 2)}\\\\" for r in fy.itertuples()]
+    write("supp_fy", "Ratio of the forecast to the realized variance one month ahead, in-range portfolios, ETF universe: "
+          "quantiles, maximum and share of ratios above 10 (\\%). Under the squared error the loss is dominated by "
+          "the few forecasts far above the realized variance.", "tab:supp_fy", "lrrrrrr",
+          ["Model & 1\\% & 50\\% & 99\\% & 99.9\\% & max & $>10$ (\\%)\\\\"], body)
+
+    E = {u: pd.read_csv(root / "main" / "tables" / "kept_epochs.csv") for u, root, _ in UNIVERSES}
+    body = []
+    for m in ("MLP", "DeepSets", "PENet", "SetTransformer", "EQCov", "Linear"):
+        row = []
+        for u in E:
+            d = E[u].set_index(["h", "model"])
+            row += [f"{d.loc[(h, m), 'median_epoch']:.0f} ({100 * d.loc[(h, m), 'share_epoch_1_2']:.0f})" for h in HS]
+        body.append(nm2(m) + " & " + " & ".join(row) + "\\\\")
+    write("supp_epochs", "Kept epoch over the 21 runs (three seeds, seven test years): median and, in parentheses, the "
+          "share of runs stopped after the first or second epoch (\\%).", "tab:supp_epochs", "l" + "c" * 6,
+          two_universe_header("", [f"$h={h}$" for h in HS]), body)
+
+
 def table_secondary_and_all():
     sb = load_script("20_scoreboard.py")
     sb.OUT = OUT
-    sb.write(sb.ROWS_SUPP, "supp_scoreboard", "tab:supp_scoreboard", "Verdicts of the secondary families, both universes.")
+    sb.write(sb.ROWS_SUPP, "supp_scoreboard", "tab:supp_scoreboard",
+             "Verdicts of the main comparisons (shown as a forest plot in the article) and of the secondary families, both "
+             "universes.")
     adapt("supp_scoreboard")
     tt = load_script("10_tables_tex.py")
     tt.OUT = OUT
@@ -537,4 +638,5 @@ if __name__ == "__main__":
     table_cost_hp()
     table_secondary_and_all()
     table_v6()
+    table_seventh()
     print("written:", ", ".join(sorted(p.name for p in OUT.glob("*.tex"))))

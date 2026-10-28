@@ -99,6 +99,12 @@ for u in etf stocks; do
     PVOL_UNIVERSE=$u $PY scripts/48_v6_hypotheses.py
 done
 $PY scripts/43_yearly.py
+# seventh series: W1 (Linear with raw inputs), W2-W3 (SPA, fixed-smoothing tests), W4 (EQ-Cov min-var exact)
+for u in etf stocks; do
+    PVOL_UNIVERSE=$u $PY scripts/50_seventh_series.py
+    PVOL_UNIVERSE=$u $PY scripts/51_seventh_analyses.py
+    PVOL_UNIVERSE=$u $PY scripts/52_minvar_eqcov_exact.py
+done
 # precision of every comparison and global multiplicity over all series
 $PY scripts/32_precision_multiplicity.py
 
@@ -108,5 +114,7 @@ $PY scripts/20_scoreboard.py
 $PY scripts/21_hypothesis_tables.py
 $PY scripts/30_fourth_tables.py
 $PY scripts/09_figures.py
+$PY scripts/53_forest_plot.py
+$PY scripts/54_learning_curves.py
 $PY scripts/46_supplement_tables.py
 bash scripts/collect_results.sh

@@ -103,6 +103,9 @@ Evaluation and tests (tables in `results*/<experiment>/tables/`)
 | `45_sixth_hypotheses.py` | tests of the sixth series (V1-V3) |
 | `47_dropout_control.py` | V6: MLP-sorted retrained with the dropout of the MLP under the conditions of R2 |
 | `48_v6_hypotheses.py` | tests of V6 |
+| `50_seventh_series.py` | seventh series: W1 (Linear with raw inputs, h=5) |
+| `51_seventh_analyses.py` | tests of the seventh series: W1, SPA test (W2), fixed-smoothing Diebold-Mariano tests (W3), forecast-to-realized ratios |
+| `52_minvar_eqcov_exact.py` | W4: minimum-variance weights of EQ-Cov from the exact solution of its convex problem |
 | `46_supplement_tables.py` | tables of the supplementary material (all models, secondary families, equivalence, series T, U, V, economic evaluation, cost and hyper-parameters) in `paper/supplement/tables/` |
 
 Every hypothesis is decided by the same rule: model a is more accurate than model b if its mean QLIKE is lower and the
@@ -115,6 +118,7 @@ Tables and figures (read both universes, run once)
 |---|---|
 | `10_tables_tex.py`, `20_scoreboard.py`, `21_hypothesis_tables.py`, `30_fourth_tables.py` | LaTeX tables in `paper/tables/` |
 | `09_figures.py` | PDF figures in `paper/figures/` (needs a LaTeX installation, the figures use `usetex`) |
+| `53_forest_plot.py`, `54_learning_curves.py` | forest plot of H1, S1b and H2 and learning curves from the stored training histories |
 
 No number in the tables is typed by hand: every table is generated from the CSV files above.
 
