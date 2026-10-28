@@ -1,5 +1,7 @@
 # Permutation-symmetric neural networks for forecasting the volatility of multi-asset portfolios
 
+[![tests](https://github.com/Aizen-volt/permutation-symmetry-portfolio-volatility/actions/workflows/tests.yml/badge.svg)](https://github.com/Aizen-volt/permutation-symmetry-portfolio-volatility/actions/workflows/tests.yml)
+
 Code for the paper. It downloads the data, builds the panels, estimates every model and writes every table and figure
 of the paper and its supplementary material. All data are public daily prices from Yahoo Finance.
 
@@ -139,7 +141,9 @@ one GPU, the CPU works too). They check the permutation symmetry of the models, 
 absence of look-ahead, every benchmark and statistical test against a direct computation or a reference
 implementation, short training runs of the networks and of the experiment runner, the Holm and Benjamini-Hochberg
 corrections of the scripts, and that the verdicts and corrected p-values stored in `replication/` follow the
-decision rule. The tests on the real panel need `data/processed/panel.npz` (`scripts/02_build_panel.py`).
+decision rule. They use `data/processed/panel.npz` (`scripts/02_build_panel.py`) when it exists; without the data they
+build a panel of the same shape from simulated prices, so they also run on a fresh clone and on the CPU, as in the
+continuous integration (`.github/workflows/tests.yml`, Ubuntu, CPU build of torch).
 
 ## License
 MIT (see `LICENSE`), for the code and the result tables in `replication/`. The price data are not covered: they

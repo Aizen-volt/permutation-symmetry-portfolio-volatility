@@ -21,6 +21,39 @@ def load_script(name):
     return mod
 
 
+@pytest.fixture(scope="session", autouse=True)
+def panel_data(tmp_path_factory):
+    """Use the real panel when it exists; otherwise build one from simulated prices over the sample period."""
+    from pvol import data
+    from pvol.config import SAMPLE_END, SAMPLE_START
+
+    if (data.PROCESSED / "panel.npz").exists() and (data.RAW / "ohlcv_adjusted.parquet").exists():
+        yield
+        return
+    import pandas as pd
+
+    tmp = tmp_path_factory.mktemp("panel")
+    idx = pd.bdate_range(SAMPLE_START, SAMPLE_END)
+    tickers = list(data.UNIVERSE)
+    g = np.random.default_rng(0)
+    T, M = len(idx), len(tickers)
+    vol = 0.01 * np.exp(np.cumsum(g.normal(0, 0.05, (T, M)), 0) * 0.1)
+    C = 100 * np.exp(np.cumsum(vol * g.standard_normal((T, M)), 0))
+    O = C * np.exp(g.normal(0, 0.003, (T, M)))
+    H = np.maximum(O, C) * np.exp(np.abs(g.normal(0, 0.004, (T, M))))
+    L = np.minimum(O, C) * np.exp(-np.abs(g.normal(0, 0.004, (T, M))))
+    cols = pd.MultiIndex.from_product([("Open", "High", "Low", "Close"), tickers])
+    df = pd.DataFrame(np.concatenate([O, H, L, C], 1), index=idx, columns=cols)
+    raw = tmp / "raw"
+    raw.mkdir()
+    df.to_parquet(raw / "ohlcv_adjusted.parquet")
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(data, "RAW", raw)
+        mp.setattr(data, "PROCESSED", tmp / "processed")
+        data.build_panel()
+        yield
+
+
 @pytest.fixture
 def rng():
     return np.random.default_rng(0)
