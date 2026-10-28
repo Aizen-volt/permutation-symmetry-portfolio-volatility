@@ -140,3 +140,7 @@ absence of look-ahead, every benchmark and statistical test against a direct com
 implementation, short training runs of the networks and of the experiment runner, the Holm and Benjamini-Hochberg
 corrections of the scripts, and that the verdicts and corrected p-values stored in `replication/` follow the
 decision rule. The tests on the real panel need `data/processed/panel.npz` (`scripts/02_build_panel.py`).
+
+## License
+MIT (see `LICENSE`), for the code and the result tables in `replication/`. The price data are not covered: they
+are downloaded from Yahoo Finance under its terms of use.
