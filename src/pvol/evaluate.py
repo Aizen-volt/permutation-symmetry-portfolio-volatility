@@ -94,9 +94,10 @@ def dm_test(d, h):
 
 
 # Model Confidence Set (Hansen, Lunde, Nason 2011)
-def mcs(loss_df, size=0.10, reps=5000, block=None, seed=0):
+def mcs(loss_df, size=0.10, reps=5000, block=None, seed=0, method="R"):
+    """MCS p-values; method "R" (range statistic, main tables) or "max" (T_max statistic)."""
     block = block or max(5, int(round(len(loss_df) ** (1 / 3))))
-    m = MCS(loss_df, size=size, reps=reps, block_size=block, method="R", bootstrap="stationary", seed=seed)
+    m = MCS(loss_df, size=size, reps=reps, block_size=block, method=method, bootstrap="stationary", seed=seed)
     m.compute()
     return m.pvalues["Pvalue"].reindex(loss_df.columns)
 

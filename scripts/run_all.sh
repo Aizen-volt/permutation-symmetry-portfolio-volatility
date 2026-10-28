@@ -84,6 +84,7 @@ for u in etf stocks; do
     PVOL_UNIVERSE=$u $PY scripts/37_fifth_series.py T
     PVOL_UNIVERSE=$u $PY scripts/38_fifth_hypotheses.py
     PVOL_UNIVERSE=$u $PY scripts/39_equivalence.py
+    PVOL_UNIVERSE=$u $PY scripts/49_mcs_tmax.py
     PVOL_UNIVERSE=$u $PY scripts/40_anchor_distance.py
     PVOL_UNIVERSE=$u $PY scripts/41_sorted_ties.py
 done

@@ -81,6 +81,15 @@ def test_mcs_keeps_best_model(rng):
     assert p["good"] == 1.0 and p["bad"] < 0.1
 
 
+def test_mcs_tmax_drops_noisy_worse_model(rng):
+    T = 1000
+    base = rng.standard_normal(T) ** 2
+    df = pd.DataFrame({"a": base, "b": base + 0.05 + 0.02 * rng.standard_normal(T),
+                       "noisy": base + 0.5 + 3.0 * rng.standard_normal(T)})
+    p = ev.mcs(df, reps=200, method="max")
+    assert p["a"] == 1.0 and p["noisy"] < 0.1
+
+
 def test_mincer_zarnowitz_recovers_coefficients(rng):
     f = rng.uniform(1, 2, 1000)
     y = 0.2 + 0.8 * f

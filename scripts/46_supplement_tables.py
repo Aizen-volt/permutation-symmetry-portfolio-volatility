@@ -417,20 +417,23 @@ def table_equivalence():
     body = []
     for fam, title in (("H1", "H1: symmetric network vs counterpart"), ("S1b", "S1b: symmetric network vs Linear")):
         for h in HS:
-            body.append(f"\\multicolumn{{9}}{{l}}{{\\emph{{{title}, $h={h}$}}}}\\\\")
+            body.append(f"\\multicolumn{{11}}{{l}}{{\\emph{{{title}, $h={h}$}}}}\\\\")
             for m in hyp.SYMMETRIC:
                 row = []
                 for u in E:
                     x = E[u]
                     q = x[(x.family == fam) & (x.h == h) & (x.model == m)].iloc[0]
                     row += [f(q.mean_diff_pp), f"[{f(q.lo90)}, {f(q.hi90)}]", yn(q.equivalent_1pp),
-                            yn(q.equivalent_2pp)]
+                            yn(q.equivalent_2pp), yn(q.equivalent_2pp_bonf)]
                 body.append(nm(m) + " & " + " & ".join(row) + "\\\\")
     write("supp_equivalence", "Precision and equivalence: mean QLIKE difference in points of the EWMA loss, 90\\% "
           "confidence interval (HAC standard error) and the verdict of the two one-sided tests (TOST, 5\\%) for "
           "equivalence margins of $\\pm1$ and $\\pm2$ points (equivalent when the 90\\% interval lies inside the "
-          "margin).", "tab:supp_equivalence", "l" + "rrcc" * 2,
-          two_universe_header("", ["$\\Delta$", "90\\% CI", "$\\pm1$", "$\\pm2$"]), body)
+          "margin). The claim that all five networks of a block are equivalent is an intersection-union test and "
+          "needs no multiplicity correction; B: the individual claims at the 2-point margin with Bonferroni over the "
+          "five networks (98\\% interval inside the margin). The margins were set after the main results.",
+          "tab:supp_equivalence", "l" + "rrccc" * 2,
+          two_universe_header("", ["$\\Delta$", "90\\% CI", "$\\pm1$", "$\\pm2$", "B"]), body)
 
 
 def hp_text(d):

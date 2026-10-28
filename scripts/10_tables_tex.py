@@ -33,19 +33,23 @@ UNIVERSES = [("ETF", BASE), ("Stocks", Path(str(BASE) + "_stocks"))]
 PAIRS = [("MLP-sorted", "MLP"), ("DeepSets", "PortMLP"), ("EQCov", "DCC"), ("EQCov", "DCCNL")]
 
 
-def qlike_cells(root, exp="main"):
-    """{(h, block): {model: cell}} with QLIKE relative to EWMA; best in bold, 90% MCS members marked with a dagger."""
+def qlike_cells(root, exp="main", tmax=False):
+    """{(h, block): {model: cell}} with QLIKE relative to EWMA; best in bold, 90% MCS members marked with a dagger
+    (with tmax, members of the 90% MCS with the T_max statistic also with a double dagger)."""
     out = {}
     for h in HORIZONS:
         f, t = root / exp / "tables" / f"losses_h{h}.csv", root / exp / "tables" / f"tests_h{h}.csv"
         if not f.exists():
             continue
         d, tests = pd.read_csv(f), pd.read_csv(t)
+        tm = root / exp / "tables" / "mcs_tmax.csv"
+        tm = pd.read_csv(tm).query("h == @h") if tmax and tm.exists() else pd.DataFrame(columns=["block", "model"])
         for b, _ in BLOCKS:
             db = d[d.block == b].set_index("model")
             if db.empty:
                 continue
             mcs = tests[(tests.block == b) & (tests.benchmark == "MCS")].set_index("model").p_value
+            mcs_max = tm[tm.block == b].set_index("model").p_value if len(tm) else pd.Series(dtype=float)
             best = db.qlike_rel_ewma.min()
             for m, v in db.qlike_rel_ewma.items():
                 cell = f"{v:.3f}"
@@ -53,6 +57,8 @@ def qlike_cells(root, exp="main"):
                     cell = f"\\textbf{{{cell}}}"
                 if m in mcs.index and mcs[m] > 0.10:
                     cell += "$^\\dagger$"
+                if m in mcs_max.index and mcs_max[m] > 0.10:
+                    cell += "$^\\ddagger$"
                 out.setdefault((h, b), {})[m] = cell
     return out
 
@@ -68,7 +74,7 @@ MAIN_MODELS = ["EWMA", "HAR", "HAR-WLS", "HARX", "LogHAR-X", "HEAVY", "GJR", "DC
 
 def main_table(exp="main", full=False):
     """In-range portfolios, three horizons, both universes (portrait): main text (selected models) or supplement (all)."""
-    cells = {u: qlike_cells(root, exp) for u, root in UNIVERSES}
+    cells = {u: qlike_cells(root, exp, tmax=full) for u, root in UNIVERSES}
     models = [m for m in CLASSICAL + NEURAL if (full or m in MAIN_MODELS)
               and any(m in c.get((h, "in-range"), {}) for c in cells.values() for h in HORIZONS)]
     first_learned = next(m for m in models if m in NEURAL)
@@ -77,6 +83,10 @@ def main_table(exp="main", full=False):
          "2020--2026. Sym.: " + ("agg.\\ = portfolio aggregates only, " if full else "")
          + "pool.\\ = invariant pooled features, canon.\\ = sorting, arch.\\ = architectural, -- = none. Bold: best in "
          "the column; $^\\dagger$: in the 90\\% Model Confidence Set."
+         + (" $^\\ddagger$: in the 90\\% Model Confidence Set with the $T_{\\max}$ statistic instead of the range "
+            "statistic, which does not eliminate models with very noisy losses such as LW (one day ahead LW is "
+            "significantly worse than HEAVY in a direct Diebold--Mariano test at the 5\\% level in both universes). One week "
+            "and one month ahead both sets retain nearly all models." if full else "")
          + ("}\\label{tab:main_all}" if full else "}\\label{tab:main}"),
          "\\begin{tabular}{llrrrrrr}\\toprule",
          " & & " + " & ".join(f"\\multicolumn{{3}}{{c}}{{{u}}}" for u, _ in UNIVERSES) + "\\\\",

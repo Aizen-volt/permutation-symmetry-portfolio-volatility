@@ -93,7 +93,8 @@ Evaluation and tests (tables in `results*/<experiment>/tables/`)
 | `36_tune_wide.py` | fifth series T: random search (21 configurations per learned model) with validation over 2017-2019 |
 | `37_fifth_series.py` | fifth series: U (MLP with slots ordered by asset index), T (main design with the settings of the search) |
 | `38_fifth_hypotheses.py` | tests of the fifth series (T1-T4, U1-U2), best validation epochs |
-| `39_equivalence.py` | confidence intervals and equivalence tests (TOST, margins of 1 and 2 points) for S1b and H1 |
+| `39_equivalence.py` | confidence intervals and equivalence tests (TOST, margins of 1 and 2 points; Bonferroni over the five networks) for S1b and H1 |
+| `49_mcs_tmax.py` | Model Confidence Set with the T_max statistic for the in-range portfolios (the main tables use the range statistic) |
 | `40_anchor_distance.py` | distance of the learned forecasts from the EWMA anchor and from the Linear correction |
 | `41_sorted_ties.py` | permutation consistency of MLP-sorted (or of the model given as argument, e.g. `MLP-tsort`) on equally weighted portfolios (retrains it, h=5) |
 | `42_sixth_series.py` | sixth series: V1 (MLP sorted by weight, ties broken by asset index), V2 (Linear without one feature group), V3 (networks of matched size) |
