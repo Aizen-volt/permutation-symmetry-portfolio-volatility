@@ -1,6 +1,6 @@
 # Permutation-symmetric neural networks for forecasting the volatility of multi-asset portfolios
 
-[![tests](https://github.com/Aizen-volt/permutation-symmetry-portfolio-volatility/actions/workflows/tests.yml/badge.svg)](https://github.com/Aizen-volt/permutation-symmetry-portfolio-volatility/actions/workflows/tests.yml)
+[![tests](https://github.com/mateusz-kaszubowski/permutation-symmetry-portfolio-volatility/actions/workflows/tests.yml/badge.svg)](https://github.com/mateusz-kaszubowski/permutation-symmetry-portfolio-volatility/actions/workflows/tests.yml)
 
 Code for the paper. It downloads the data, builds the panels, estimates every model and writes every table and figure
 of the paper and its supplementary material. All data are public daily prices from Yahoo Finance.
