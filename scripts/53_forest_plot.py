@@ -1,4 +1,4 @@
-"""Forest plot of the main comparisons: H1 (symmetric vs counterpart), S1b (symmetric vs Linear) and H2 (symmetric vs
+"""Forest plot of the main comparisons: H1 (symmetric vs counterpart), C1 (symmetric vs Linear) and H2 (symmetric vs
 best classical model), in-range portfolios, every horizon and both universes.
 
 Effect: mean daily QLIKE differential (first model minus second) in points of the in-range EWMA loss, with the 95%
@@ -22,7 +22,7 @@ plt = figs.plt
 
 SYM = ["DeepSets", "PENet", "SetTransformer", "SetGRU", "EQCov"]
 FAMILIES = [("H1", "hypotheses.csv", dict(hypothesis="H1", block="in-range"), "vs counterpart"),
-            ("S1b", "hypotheses_fourth.csv", dict(hypothesis="S1b", benchmark="Linear", block="in-range"), "vs Linear"),
+            ("C1", "hypotheses_fourth.csv", dict(hypothesis="S1b", benchmark="Linear", block="in-range"), "vs Linear"),
             ("H2", "hypotheses.csv", dict(hypothesis="H2", block="in-range"), "vs best classical")]
 UNI = [("ETF", figs.UNIVERSES[0][1], "o", "#0072B2"), ("Stocks", figs.UNIVERSES[1][1], "s", "#D55E00")]
 

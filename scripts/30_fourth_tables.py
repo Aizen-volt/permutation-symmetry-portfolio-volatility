@@ -78,11 +78,11 @@ def global_holm(universe):
 
 
 def tests():
-    L = ["\\begin{table}[t]\\centering\\footnotesize\\setlength{\\tabcolsep}{3pt}",
+    L = ["\\begin{table}[H]\\centering\\footnotesize\\setlength{\\tabcolsep}{3pt}",
          "\\caption{H1 and H2 under alternative tests, samples and protocols: comparisons decided in favor of the "
          "symmetric network out of five; ($-k$): $k$ against it; `--': not run. Excl.\\ 2020 (2026): origins outside "
          "that year; global Holm: over all 625 comparisons; GW: conditional Giacomini--White test (constant and lagged "
-         "differential); protocol B, refit: Section~\\ref{sec:res:robust}. Seed pairs: share of seed pairs in which the "
+         "differential); protocol B, refit: Section~VI-E of the main text. Seed pairs: share of seed pairs in which the "
          "symmetric network has the lower loss (100 pairs for stocks at $h=1$, otherwise 9).}"
          "\\label{tab:fourth_tests}",
          "\\begin{tabular}{ll" + "c" * 2 * len(UNIVERSES) + "}\\toprule",

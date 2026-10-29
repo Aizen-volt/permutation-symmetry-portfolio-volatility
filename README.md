@@ -49,6 +49,10 @@ download.
 
 ## Scripts
 
+Scripts and result files use the labels under which each series of experiments was run (HE1, R1a, S1b, T, U, V1, W1,
+...). The article labels the hypotheses by research question; Table S1 of the supplementary material maps every
+article label to its series and file label (for example S1b → C1, W1 → C2, V3 → K7).
+
 Data, tuning and benchmarks
 
 | script | purpose |

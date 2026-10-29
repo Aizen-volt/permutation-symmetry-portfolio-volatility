@@ -24,32 +24,32 @@ F4 = "hypotheses_fourth.csv"
 # main text: the families of the three research questions
 ROWS = [
     ("RQ1: architecture against learned symmetry", None, None),
-    ("HE1: raw inputs", "hypotheses_extra.csv", dict(hypothesis="HE1")),
-    ("HE2: pool of 50 portfolios", "hypotheses_extra.csv", dict(hypothesis="HE2", block="in-range, pool 50")),
-    ("HE2: pool of 500 portfolios", "hypotheses_extra.csv", dict(hypothesis="HE2", block="in-range, pool 500")),
+    ("A1: raw inputs", "hypotheses_extra.csv", dict(hypothesis="HE1")),
+    ("A2: pool of 50 portfolios", "hypotheses_extra.csv", dict(hypothesis="HE2", block="in-range, pool 50")),
+    ("A2: pool of 500 portfolios", "hypotheses_extra.csv", dict(hypothesis="HE2", block="in-range, pool 500")),
     ("RQ2: simpler routes to invariance", None, None),
-    ("R1a: pool of 50 vs shuffled counterpart", R, dict(hypothesis="R1a", block="in-range, pool 50, shuffled counterpart")),
-    ("R1a: pool of 500 vs shuffled counterpart", R,
+    ("B1: pool of 50 vs shuffled counterpart", R, dict(hypothesis="R1a", block="in-range, pool 50, shuffled counterpart")),
+    ("B1: pool of 500 vs shuffled counterpart", R,
      dict(hypothesis="R1a", block="in-range, pool 500, shuffled counterpart")),
-    ("R1b: shuffling improves the counterpart$^{a}$", R, dict(hypothesis="R1b")),
-    ("R2: vs MLP-sorted, raw inputs", R, dict(hypothesis="R2", block="in-range, raw inputs")),
-    ("R2: vs MLP-sorted, pool of 50", R, dict(hypothesis="R2", block="in-range, pool 50")),
-    ("R2: vs MLP-sorted, pool of 500", R, dict(hypothesis="R2", block="in-range, pool 500")),
-    ("R3: vs counterpart averaged over orderings, $h=1$", R, dict(hypothesis="R3", h=1)),
-    ("R3: vs counterpart averaged over orderings, $h=5$", R, dict(hypothesis="R3", h=5)),
-    ("R5: H1 on 54 stocks, $h=1$", R, dict(hypothesis="R5", h=1), "_stocks54"),
-    ("R5: H1 on 54 stocks, $h=5$", R, dict(hypothesis="R5", h=5), "_stocks54"),
-    ("S2: H1 with ten seeds, $h=1$", F4, dict(hypothesis="S2-H1", h=1)),
-    ("S2: R3 with ten seeds, $h=1$", F4, dict(hypothesis="S2-R3", h=1)),
-    ("S2: R5 with ten seeds, $h=1$", F4, dict(hypothesis="S2-R5", h=1), "_stocks54"),
+    ("B2: shuffling improves the counterpart$^{a}$", R, dict(hypothesis="R1b")),
+    ("B3: vs MLP-sorted, raw inputs", R, dict(hypothesis="R2", block="in-range, raw inputs")),
+    ("B3: vs MLP-sorted, pool of 50", R, dict(hypothesis="R2", block="in-range, pool 50")),
+    ("B3: vs MLP-sorted, pool of 500", R, dict(hypothesis="R2", block="in-range, pool 500")),
+    ("B4: vs counterpart averaged over orderings, $h=1$", R, dict(hypothesis="R3", h=1)),
+    ("B4: vs counterpart averaged over orderings, $h=5$", R, dict(hypothesis="R3", h=5)),
+    ("B6: H1 on 54 stocks, $h=1$", R, dict(hypothesis="R5", h=1), "_stocks54"),
+    ("B6: H1 on 54 stocks, $h=5$", R, dict(hypothesis="R5", h=5), "_stocks54"),
+    ("K1: H1 with ten seeds, $h=1$", F4, dict(hypothesis="S2-H1", h=1)),
+    ("K1: B4 with ten seeds, $h=1$", F4, dict(hypothesis="S2-R3", h=1)),
+    ("K1: B6 with ten seeds, $h=1$", F4, dict(hypothesis="S2-R5", h=1), "_stocks54"),
     ("RQ3: flexibility and classical benchmarks", None, None),
-    ("W1: vs invariant linear, raw inputs", "hypotheses_seventh.csv", dict(hypothesis="W1")),
+    ("C2: vs invariant linear, raw inputs", "hypotheses_seventh.csv", dict(hypothesis="W1")),
 ]
 # the main comparisons, shown in the main text as a forest plot (scripts/53_forest_plot.py)
 ROWS_MAIN = [
     *[(f"H1: symmetric vs counterpart, $h={h}$", "hypotheses.csv", dict(hypothesis="H1", h=h, block="in-range"))
       for h in (1, 5, 22)],
-    *[(f"S1b: symmetric vs invariant linear, $h={h}$", F4, dict(hypothesis="S1b", h=h, benchmark="Linear"))
+    *[(f"C1: symmetric vs invariant linear, $h={h}$", F4, dict(hypothesis="S1b", h=h, benchmark="Linear"))
       for h in (1, 5, 22)],
     *[(f"H2: symmetric vs best classical, $h={h}$", "hypotheses.csv", dict(hypothesis="H2", h=h, block="in-range"))
       for h in (1, 5, 22)],
@@ -63,15 +63,15 @@ ROWS_SUPP = [
     *[(f"H1: volatility targeting, $h={h}$", E, dict(hypothesis="H1-voltarget", h=h)) for h in (1, 5, 22)],
     ("H2: minimum-variance portfolios", E, dict(hypothesis="H2-minvar")),
     *[(f"H2: volatility targeting, $h={h}$", E, dict(hypothesis="H2-voltarget", h=h)) for h in (1, 5, 22)],
-    ("H3a: advantage grows with $N$", "hypotheses.csv", dict(hypothesis="H3a", h=5)),
-    ("H3b: long--short weights, $h=5$", "hypotheses.csv", dict(hypothesis="H3b", h=5)),
-    ("H3c: unseen assets, $h=5$", "hypotheses.csv", dict(hypothesis="H3c", h=5)),
-    ("H4: short training history", "hypotheses.csv", dict(hypothesis="H4")),
-    ("HE1d: larger advantage than with summaries", "hypotheses_extra.csv", dict(hypothesis="HE1d")),
-    ("HE2d: larger advantage with 50 than 500", "hypotheses_extra.csv", dict(hypothesis="HE2d")),
-    ("HE3: portfolios with $N>20$", "hypotheses_extra.csv", dict(hypothesis="HE3")),
-    ("R4: Deep Sets + pairs vs MLP, raw inputs", R, dict(hypothesis="R4")),
-    *[(f"S1c: symmetric vs GBM, $h={h}$", F4, dict(hypothesis="S1b", h=h, benchmark="GBM")) for h in (1, 5, 22)],
+    ("G1: advantage grows with $N$", "hypotheses.csv", dict(hypothesis="H3a", h=5)),
+    ("G2: long--short weights, $h=5$", "hypotheses.csv", dict(hypothesis="H3b", h=5)),
+    ("G3: unseen assets, $h=5$", "hypotheses.csv", dict(hypothesis="H3c", h=5)),
+    ("G4: short training history", "hypotheses.csv", dict(hypothesis="H4")),
+    ("A4: larger advantage than with summaries", "hypotheses_extra.csv", dict(hypothesis="HE1d")),
+    ("A5: larger advantage with 50 than 500", "hypotheses_extra.csv", dict(hypothesis="HE2d")),
+    ("A3: portfolios with $N>20$", "hypotheses_extra.csv", dict(hypothesis="HE3")),
+    ("B5: Deep Sets + pairs vs MLP, raw inputs", R, dict(hypothesis="R4")),
+    *[(f"C3: symmetric vs GBM, $h={h}$", F4, dict(hypothesis="S1b", h=h, benchmark="GBM")) for h in (1, 5, 22)],
 ]
 
 
@@ -134,7 +134,7 @@ def write(rows, name, label, caption):
          "\\caption{" + caption + " Verdict: comparisons decided in favor of the symmetric network (Section~"
          "\\ref{sec:hypotheses}) out of those tested; ($-k$): $k$ decided against it; `--': not run. Effect: range of the "
          "mean QLIKE differential (first model minus second) in points of the EWMA loss; negative favors the symmetric "
-         "network" + ("" if name == "scoreboard" else " (H3a, H4: the stated condition); no effect size for the economic "
+         "network" + ("" if name == "scoreboard" else " (G1, G4: the stated condition); no effect size for the economic "
                       "comparisons") + ". $p_{\\text{Holm}}$: range of the Holm-adjusted $p$-values."
          + ("" if name != "scoreboard" else " $^{a}$Shuffled counterpart vs the same network in fixed order; here the "
             "verdict counts comparisons decided in favor of the shuffled counterpart, and negative effects favor it.")
@@ -161,6 +161,6 @@ def write(rows, name, label, caption):
 if __name__ == "__main__":
     write(ROWS, "scoreboard", "tab:scoreboard",
           "Verdicts of the exploratory hypotheses of the three research questions (the confirmatory H1 and H2 and the "
-          "comparison S1b with Linear are shown in Figure~\\ref{fig:forest}). R5 and its S2 repetition use 54 stocks.")
+          "comparison C1 with Linear are shown in Figure~\\ref{fig:forest}). B6 and its K1 repetition use 54 stocks.")
     write(ROWS_SUPP, "scoreboard_supp", "tab:scoreboard_supp",
           "Verdicts of the secondary families, both universes.")

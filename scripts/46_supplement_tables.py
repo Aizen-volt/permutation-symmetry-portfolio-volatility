@@ -111,7 +111,7 @@ def table_v1(T):
     for m in ("MLP-sorted", "MLP-tsort"):
         body.append(f"{m}: range, median / p99 & " + " & ".join(
             f"\\multicolumn{{3}}{{c}}{{{rng[u][m]['median']:.3g} / {rng[u][m]['p99']:.3g}}}" for u in T) + "\\\\")
-    write("supp_v1", "V1, ties in the sort by weight. Top: in-range QLIKE relative to EWMA (seed ensembles). Middle: "
+    write("supp_v1", "K5, ties in the sort by weight. Top: in-range QLIKE relative to EWMA (seed ensembles). Middle: "
           "differences in points of the EWMA loss and Holm-adjusted $p$ (Holm over the three horizons). Bottom: range "
           "of the log-variance forecast over five orderings of 100 equally weighted ten-asset portfolios ($h=5$, "
           "median and 99th percentile over portfolios and origins, mean over seeds).", "tab:supp_v1",
@@ -140,7 +140,7 @@ def table_v3_params():
                              env={**os.environ, "PVOL_UNIVERSE": env}).stdout
         P[u] = json.loads(out.strip().splitlines()[-1])
     body = [nm(m) + " & " + " & ".join(f"{P[u][m]:,}" for u in P) + "\\\\" for m in V3_SETTINGS]
-    write("supp_v3_params", "V3, number of parameters of the capacity-matched networks.", "tab:supp_v3_params",
+    write("supp_v3_params", "K7, number of parameters of the capacity-matched networks.", "tab:supp_v3_params",
           "lrr", ["Network & ETF & Stocks\\\\"], body)
 
 
@@ -186,7 +186,7 @@ def table_v5():
             a, b = (sum(t.loc[fam].verdict == "more accurate") for t in Tst[u])
             row += [f"\\multicolumn{{4}}{{c}}{{{a}/5 (Adam), {b}/5 (best)}}"]
         body.append(" & ".join(row) + "\\\\")
-    write("supp_v5", "V5, minimum-variance optimizer ($h=5$, seed 0). Annual realized volatility (\\%) of the "
+    write("supp_v5", "K9, minimum-variance optimizer ($h=5$, seed 0). Annual realized volatility (\\%) of the "
           "portfolios chosen with the stored weights (200 Adam steps from equal weights) and with the better solution "
           "(exact projected-gradient solution for the covariance models, best of seven starts by the model's own "
           "forecast for the networks), its change in percentage points, and the rank among the 13 models. Bottom: "
@@ -210,7 +210,7 @@ def table_yearly():
                 body.append(f"{nm(a)} $-$ {nm(b)}, $h={h}$ & " + " & ".join(vals) + f" & {f(s.mean_diff_pp.median(), 1)}\\\\")
         body.append("\\addlinespace")
     body.pop()
-    write("supp_yearly", "V4, results by test year: mean in-range QLIKE difference in points of that year's EWMA "
+    write("supp_yearly", "K8, results by test year: mean in-range QLIKE difference in points of that year's EWMA "
           "loss (negative: the first model is more accurate) and its median over the years; $^*$: unadjusted "
           "Diebold--Mariano $p<0.05$ within the year (descriptive, no correction). One month ahead Linear is also "
           "compared with the best classical model of that horizon (HAR for the funds, GJR-GARCH for the stocks). 2026: "
@@ -271,8 +271,8 @@ def table_fifth():
     H = {u: with_effects(pd.read_csv(root / "main" / "tables" / "hypotheses_fifth.csv"), root)
          for u, root, _ in UNIVERSES}
     sub = ["$\\Delta$", "95\\% CI", "$p_{\\mathrm{Holm}}$"]
-    fams = [("T1", "T1: symmetric vs counterpart"), ("T2", "T2 (S1b): network vs Linear"),
-            ("T3", "T3 (H2): symmetric vs best classical"),
+    fams = [("T1", "K3, H1: symmetric vs counterpart"), ("T2", "K3, C1: network vs Linear"),
+            ("T3", "K3, H2: symmetric vs best classical"),
             ("T4 (aux: broader search vs main protocol)", "T4 (auxiliary): broader search vs main protocol")]
     for h in HS:
         body = []
@@ -295,7 +295,7 @@ def table_fifth():
                         c[0] += f" ({q.benchmark})"
                     row += c
                 body.append(lbl + " & " + " & ".join(row) + "\\\\")
-        write(f"supp_t_h{h}", f"Fifth series T, broader hyper-parameter search, $h={h}$: all learned models retuned by "
+        write(f"supp_t_h{h}", f"K3, broader hyper-parameter search, $h={h}$: all learned models retuned by "
               "random search (21 configurations per model, validation over 2017--2019). Difference of the first "
               "model from the second ($\\Delta<0$: the first is more accurate) in points of the EWMA loss, 95\\% "
               "confidence interval and Holm-adjusted $p$ (Holm within each family). T3: against the most accurate "
@@ -312,11 +312,11 @@ def table_fifth():
             body.append(f"{nm(m)}, {tag} & " + " & ".join(vals) + "\\\\")
         if m != models[-1]:
             body.append("\\addlinespace")
-    write("supp_t_levels", "Fifth series T: in-range QLIKE relative to EWMA with the settings of the main design and "
+    write("supp_t_levels", "K3, broader search: in-range QLIKE relative to EWMA with the settings of the main design and "
           "with those of the broader search.", "tab:supp_t_levels", "l" + "r" * 6,
           two_universe_header("", [f"$h={h}$" for h in HS]), body)
     body = []
-    for fam, title in (("U1", "U1: MLP-idsort vs MLP"), ("U2", "U2: MLP-sorted vs MLP-idsort")):
+    for fam, title in (("U1", "K4a: MLP-idsort vs MLP"), ("U2", "K4b: MLP-sorted vs MLP-idsort")):
         body.append(f"\\multicolumn{{7}}{{l}}{{\\emph{{{title}}}}}\\\\")
         for blk in ("main design", "raw inputs", "pool 50"):
             row = []
@@ -324,7 +324,7 @@ def table_fifth():
                 x = H[u]
                 row += cells(x[(x.hypothesis == fam) & (x.block == blk)].iloc[0])
             body.append(blk[0].upper() + blk[1:] + " & " + " & ".join(row) + "\\\\")
-    write("supp_u", "Fifth series U, sort key ($h=5$): MLP-idsort orders the slots by the asset index (invariant, "
+    write("supp_u", "K4, sort key ($h=5$): MLP-idsort orders the slots by the asset index (invariant, "
           "unrelated to the weights). Difference of the first model from the second in points of the EWMA loss, "
           "95\\% confidence interval and Holm-adjusted $p$ (Holm over the three designs).", "tab:supp_u",
           "l" + "rrr" * 2, two_universe_header("Design", sub), body)
@@ -420,7 +420,7 @@ def table_equivalence():
     E = {u: pd.read_csv(root / "main" / "tables" / "equivalence.csv") for u, root, _ in UNIVERSES}
     yn = lambda b: "yes" if b else "no"
     body = []
-    for fam, title in (("H1", "H1: symmetric network vs counterpart"), ("S1b", "S1b: symmetric network vs Linear")):
+    for fam, title in (("H1", "H1: symmetric network vs counterpart"), ("S1b", "C1: symmetric network vs Linear")):
         for h in HS:
             body.append(f"\\multicolumn{{11}}{{l}}{{\\emph{{{title}, $h={h}$}}}}\\\\")
             for m in hyp.SYMMETRIC:
@@ -461,7 +461,7 @@ def table_cost_hp():
         body.append(nm(m) + " & " + " & ".join(vals) + "\\\\")
     write("supp_cost", "Computational cost ($h=5$): number of parameters, forecast time for 1,000 portfolios of ten "
           "assets and of all assets of the universe (ms; `--': slot-based networks take at most 20 assets), and "
-          "mean training time per seed and test year (s), on one GPU.", "tab:supp_cost", "l" + "rrrr" * 2,
+          "mean training time per seed and test year (s), on one consumer GPU (NVIDIA RTX 3060 Ti).", "tab:supp_cost", "l" + "rrrr" * 2,
           two_universe_header("Model", ["params", "$N=10$", "all", "train"]), body)
     body = []
     for u, root, _ in UNIVERSES:
@@ -473,7 +473,7 @@ def table_cost_hp():
             b = hp_text({**wide[m]["hp"], **wide[m]["cfg"]}) if m in wide else "--"
             body.append(f"{nm(m)} & {a} & {b}\\\\")
     write("supp_hp", "Hyper-parameters in use: main design (training settings otherwise the defaults: learning rate "
-          "$10^{-4}$, weight decay $10^{-4}$, patience 10) and the broader search of series T (architecture and "
+          "$10^{-4}$, weight decay $10^{-4}$, patience 10) and the broader search K3 (architecture and "
           "training settings). d: width of the element embedding; phi, rho: hidden layers of the element and "
           "read-out maps. GBM has fixed settings (Section~\\ref{s:all}).", "tab:supp_hp", "lp{5.2cm}p{7.6cm}", ["Model & Main design & Broader search (T)\\\\"], body)
 
@@ -502,15 +502,15 @@ def table_v6():
                 n = new[(new.model == a3) & (new.benchmark == b3)].iloc[0]
                 row += [f(o.eff), pval(o.p_holm), f(n.eff), pval(n.p_holm)]
             body.append(" & ".join(row) + "\\\\")
-    write("supp_v6", "V6, dropout of MLP-sorted ($h=5$): R2 and the comparison of MLP-sorted with the MLP with "
+    write("supp_v6", "K10, dropout of MLP-sorted ($h=5$): B3 and the comparison of MLP-sorted with the MLP with "
           "MLP-sorted trained with its selected dropout (0.1, as in the main text) and with the dropout of the MLP "
           "(0.3). Difference of the first model from the second in points of the EWMA loss and Holm-adjusted $p$ "
-          "(Holm within each design for R2).", "tab:supp_v6", "l" + "rrrr" * 2,
+          "(Holm within each design for B3).", "tab:supp_v6", "l" + "rrrr" * 2,
           two_universe_header("", ["$\\Delta_{0.1}$", "$p$", "$\\Delta_{0.3}$", "$p$"]), body)
 
 
 def table_seventh():
-    """Series W: Linear with raw inputs (W1), fixed-smoothing tests (W3), SPA (W2), and descriptive tables (W5)."""
+    """Seventh series: Linear with raw inputs (C2), fixed-smoothing tests (K12), SPA (K13), and descriptive tables."""
     H7 = {u: pd.read_csv(root / "main" / "tables" / "hypotheses_seventh.csv") for u, root, _ in UNIVERSES}
     body = []
     for m in ("DeepSets", "DeepSetsP", "PENet", "SetTransformer", "SetGRU", "MLP", "GRU"):
@@ -521,7 +521,7 @@ def table_seventh():
             row += [f(r.eff), f"[{f(r.lo)}, {f(r.hi)}]", pval(r.p_holm) if pd.notna(r.p_holm) else "--"]
         lbl = {"DeepSetsP": "Deep Sets + pairs"}.get(m, nm(m))
         body.append(lbl + " & " + " & ".join(row) + "\\\\")
-    write("supp_w1", "W1, raw inputs ($h=5$): difference of each network with raw inputs from Linear with raw inputs, in "
+    write("supp_w1", "C2, raw inputs ($h=5$): difference of each network with raw inputs from Linear with raw inputs, in "
           "points of the EWMA loss ($\\Delta<0$: the network is more accurate), with 95\\% confidence interval and "
           "Holm-adjusted $p$ over the five symmetric networks (MLP and GRU descriptive).", "tab:supp_w1", "l" + "rrr" * 2,
           two_universe_header("", ["$\\Delta$", "95\\% CI", "$p_{\\text{Holm}}$"]), body)
@@ -541,9 +541,9 @@ def table_seventh():
                       if fam == "S1b" else hy[(hy.hypothesis == fam) & (hy.h == h) & (hy.block == "in-range")])
                 ew = H7[u][(H7[u].hypothesis == f"W3-{fam}") & (H7[u].h == h)]
                 row += [count(dm), count(ew)]
-            body.append(f"{fam}, $h={h}$ & " + " & ".join(row) + "\\\\")
+            body.append(f"{'C1' if fam == 'S1b' else fam}, $h={h}$ & " + " & ".join(row) + "\\\\")
     sz = pd.read_csv(BASE / "main" / "tables" / "ewc_size.csv")
-    write("supp_ewc", "W3, H1, S1b and H2 with the Newey--West (DM) and the fixed-smoothing (EWC, "
+    write("supp_ewc", "K12, H1, C1 and H2 with the Newey--West (DM) and the fixed-smoothing (EWC, "
           "$\\nu=\\lfloor0.4T^{2/3}\\rfloor$ cosine terms, $t_\\nu$ reference) long-run variance: comparisons decided "
           "in favor of the symmetric network out of five; ($-k$): $k$ against it. In a simulation with MA($h-1$) "
           "differentials of the length of the test period (300 replications) the size at 5\\% is "
@@ -560,7 +560,7 @@ def table_seventh():
             worst = s.loc[s.p_consistent.idxmax()]
             row += [f"{int((s.p_consistent < 0.05).sum())}/{len(s)}", f"{nm2(worst.benchmark)} ({f(worst.p_consistent, 3)})"]
         body.append(f"$h={h}$ & " + " & ".join(row) + "\\\\")
-    write("supp_spa", "W2, test of superior predictive ability (Hansen, 2005; studentized, stationary bootstrap, 5,000 "
+    write("supp_spa", "K13, test of superior predictive ability (Hansen, 2005; studentized, stationary bootstrap, 5,000 "
           "replications) with each classical model as the benchmark and the five symmetric networks as the "
           "alternatives: benchmarks for which the null hypothesis that no network beats it is rejected at 5\\%, and "
           "the benchmark with the largest $p$-value (consistent $p$).", "tab:supp_spa", "lllll",
@@ -622,11 +622,11 @@ if __name__ == "__main__":
     table_v1(T)
     V2 = ["Linear-noasset", "Linear-noeuler", "Linear-nopairs", "Linear-noport", "Linear-portonly"]
     table_tests(T, "V2", [(m, "Linear") for m in V2], "supp_v2",
-                "V2, feature ablation of Linear: difference from Linear with all features ($\\Delta>0$: the variant is "
+                "K6, feature ablation of Linear: difference from Linear with all features ($\\Delta>0$: the variant is "
                 "less accurate), in points of the EWMA loss, with 95\\% confidence interval and Holm-adjusted $p$ "
                 "(Holm over the five variants at each horizon).", "tab:supp_v2", extra=lambda a, b: "")
     table_tests(T, "V3", [("DeepSets", "MLP-small"), ("DeepSets-L", "MLP")], "supp_v3",
-                "V3, networks of matched size: difference of the Deep Set from the MLP ($\\Delta<0$: Deep Sets more "
+                "K7, networks of matched size: difference of the Deep Set from the MLP ($\\Delta<0$: Deep Sets more "
                 "accurate), in points of the EWMA loss, with 95\\% confidence interval and Holm-adjusted $p$ (Holm "
                 "over the two pairs at each horizon).", "tab:supp_v3")
     table_v3_params()
